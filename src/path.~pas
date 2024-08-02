@@ -5,7 +5,7 @@ unit Path;
 interface
 
 uses
-	Windows, SysUtils, Common;
+	Windows, Common;
 
 //==============================================================================
 // 関数定義
@@ -141,7 +141,7 @@ var
 	n		:byte;
 	//cost:word;
 	//str:string;
-	i, j:integer;
+	//i:integer;
 begin
 	ZeroMemory(@aa, sizeof(aa));
 	aa[1].x := x1;
@@ -184,14 +184,12 @@ begin
 
 	x := aa[1].mx;
 	y := aa[1].my;
-
 	if mm[x][y].cost <> 0 then begin
 		CopyMemory(@path, @mm[x][y].path, mm[x][y].pcnt);
 		Result := mm[x][y].pcnt;
 	end else begin
 		Result := 0;
 	end;
-
 end;
 //------------------------------------------------------------------------------
 // ヒープから最小の要素を削除する

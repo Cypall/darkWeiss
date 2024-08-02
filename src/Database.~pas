@@ -9,10 +9,10 @@ uses
 
 //==============================================================================
 // 関数定義
-		procedure DatabaseLoad(Handle:HWND);
-		procedure DataLoad();
-    procedure PlayerDataLoad();
-		procedure DataSave();
+		procedure DatabaseLoad(Handle:HWND); //edited by The Harbinger -- darkWeiss version
+		procedure DataLoad(); //edited by The Harbinger -- darkWeiss version
+    procedure PlayerDataLoad(); //added by The Harbinger -- darkWeiss version
+		procedure DataSave();  //edited by The Harbinger -- darkWeiss version
 //==============================================================================
 
 
@@ -33,7 +33,9 @@ var
 	w		:word;
 	xy	:TPoint;
 	str :string;
+  mystr:string;
 	txt :TextFile;
+  txt2:TextFile;
 	sl  :TStringList;
 	sl1 :TStringList;
 	ta	:TMapList;
@@ -47,10 +49,13 @@ var
 {氏{箱追加}
 	tsmn	:TSummon;
   tss   :TSlaveDB;
+  tid   :TIDTbl;
   ma    :TMArrowDB;
+  tk    :TKafra;
+  tbn   :TBan;
 {氏{箱追加ココまで}
 {キューペット}
-        tp      :TPetDB;
+ tp      :TPetDB;
 {キューペットここまで}
 {NPCイベント追加}
 	mi  :MapTbl;
@@ -87,7 +92,7 @@ begin
 					FileExists(AppPath + 'database\exp_guild_db.txt') and
 {ギルド機能追加ココまで}
 					FileExists(AppPath + 'database\exp_db.txt')) then begin
-		MessageBox(Handle, 'You have missing files. Go to eWeiss uploader to get them', 'eWeiss', MB_OK or MB_ICONSTOP);
+		MessageBox(Handle, 'You have missing files. Go to http://dwiess.sigh.org/forum', 'darkWeiss', MB_OK or MB_ICONSTOP);
 		Application.Terminate;
 		exit;
 	end;
@@ -95,13 +100,13 @@ begin
 	//gatファイルの存在をチェック
 	DebugOut.Lines.Add('Map data loading...');
 	Application.ProcessMessages;
-	if FindFirst(AppPath + 'map\*.gat', $27, sr) = 0 then begin
+	if FindFirst(AppPath + 'map\*.dwm', $27, sr) = 0 then begin
 		repeat
 			dat := TFileStream.Create(AppPath + 'map\' + sr.Name, fmOpenRead, fmShareDenyWrite);
-			SetLength(str, 4);
-			dat.Read(str[1], 4);
-			if str <> 'GRAT' then begin
-				MessageBox(Handle, PChar('Map Format Error : ' + sr.Name), 'eWeiss', MB_OK or MB_ICONSTOP);
+			SetLength(str, 3);
+			dat.Read(str[1], 3);
+			if str <> 'DWM' then begin
+				MessageBox(Handle, PChar('Map Format Error : ' + sr.Name), 'darkWeiss', MB_OK or MB_ICONSTOP);
 				Application.Terminate;
 				exit;
 			end;
@@ -110,7 +115,7 @@ begin
 			dat.Read(xy.Y, 4);
 			dat.Free;
 			if (xy.X < 0) or (xy.X > 511) or (xy.Y < 0) or (xy.Y > 511) then begin
-				MessageBox(Handle, PChar('Map Size Error : ' + sr.Name), 'eWeiss', MB_OK or MB_ICONSTOP);
+				MessageBox(Handle, PChar('Map Size Error : ' + sr.Name), 'darkWeiss', MB_OK or MB_ICONSTOP);
 				Application.Terminate;
 				exit;
 			end;
@@ -125,13 +130,13 @@ begin
 		FindClose(sr);
 	end else begin
 		//gatファイルが1個もない場合
-		MessageBox(Handle, 'gat files missing', 'eWeiss', MB_OK or MB_ICONSTOP);
+		MessageBox(Handle, 'map files missing', 'darkWeiss', MB_OK or MB_ICONSTOP);
 		Application.Terminate;
 		exit;
 	end;
 	if MapList.IndexOf('prontera') = -1 then begin
 		//最低限、prontera.gatがないと起動しない
-		MessageBox(Handle, 'prontera.gat missing', 'eWeiss', MB_OK or MB_ICONSTOP);
+		MessageBox(Handle, 'prontera.dwm missing', 'darkWeiss', MB_OK or MB_ICONSTOP);
 		Application.Terminate;
 		exit;
 	end;
@@ -584,6 +589,12 @@ begin
 			Readln(txt, str);
 			sl.DelimitedText := str;
 			if (sl.Count < 2) then continue;
+      sl[0] := LowerCase(sl[0]);
+      if (ExtractFileExt(sl[0]) <> '.dwm') then begin
+				MessageBox(Handle, PChar('mapinfo_db File Format Error : ' + sl[0] + ' : This Is Not A Valid Map Format'), 'darkWeiss', MB_OK or MB_ICONSTOP);
+				Application.Terminate;
+				exit;
+			end;
 			sl[0] := ChangeFileExt(sl[0], '');
 			if (MapInfo.IndexOf(sl[0]) = -1) then begin
 				mi := MapTbl.Create;
@@ -597,6 +608,7 @@ begin
 				else if (sl[i] = 'nosave') then mi.noSave := true
 				else if (sl[i] = 'noteleport') then mi.noTele := true
         else if (sl[i] = 'pvp') then mi.PvP := true
+        else if (sl[i] = 'pvpg') then mi.PvPG := true
 			end;
 			if (j = 1) then begin
 				MapInfo.AddObject(sl[0], mi);
@@ -621,9 +633,9 @@ begin
 		sl.Clear;
 		Readln(txt, str);
 		sl.DelimitedText := str;
-		for i := sl.Count to 64 do
+		for i := sl.Count to 74 do
 			sl.Add('0');
-		for i := 0 to 64 do
+		for i := 0 to 74 do
 			if (i <> 1) and (i <> 2) and (sl.Strings[i] = '') then sl.Strings[i] := '0';
 		tl := TSkillDB.Create;
 		with tl do begin
@@ -644,18 +656,22 @@ begin
 			for i := 0 to 9 do
 				Data1[i+1] := StrToInt(sl.Strings[22+i]);
 			for i := 0 to 9 do
-				Data2[i+1] := StrToInt(sl.Strings[32+i]);
+      Data2[i+1] := StrToInt(sl.Strings[32+i]);
 			Range2 := StrToInt(sl.Strings[42]);
 			Icon := StrToInt(sl.Strings[43]);
 			wj := StrToInt64(sl.Strings[44]);
 {修正}
-			for i := 0 to 20 do begin
+			for i := 0 to 23 do begin
 				Job[i] := boolean((wj and (1 shl i)) <> 0);
 			end;
 {修正ココまで}
 			for i := 0 to 9 do begin
-				ReqSkill[i] := StrToInt(sl.Strings[45+i*2]);
-				ReqLV[i] := StrToInt(sl.Strings[46+i*2]);
+				ReqSkill1[i] := StrToInt(sl.Strings[45+i*2]);
+				ReqLV1[i] := StrToInt(sl.Strings[46+i*2]);
+			end;
+      for i := 0 to 9 do begin
+				ReqSkill2[i] := StrToInt(sl.Strings[55+i*2]);
+				ReqLV2[i] := StrToInt(sl.Strings[56+i*2]);
 			end;
 		end;
 		SkillDB.AddObject(tl.ID, tl);
@@ -676,9 +692,9 @@ begin
 		sl.Clear;
 		Readln(txt, str);
 		sl.DelimitedText := str;
-		for i := sl.Count to 64 do
+		for i := sl.Count to 74 do
 			sl.Add('0');
-		for i := 0 to 64 do
+		for i := 0 to 74 do
 			if (i <> 1) and (i <> 2) and (sl.Strings[i] = '') then sl.Strings[i] := '0';
 		tl := TSkillDB.Create;
 		with tl do begin
@@ -707,8 +723,12 @@ begin
 				Job[i] := boolean((wj and (1 shl i)) <> 0);
 			end;
 			for i := 0 to 9 do begin
-				ReqSkill[i] := StrToInt(sl.Strings[45+i*2]);
-				ReqLV[i] := StrToInt(sl.Strings[46+i*2]);
+				ReqSkill1[i] := StrToInt(sl.Strings[45+i*2]);
+				ReqLV1[i] := StrToInt(sl.Strings[46+i*2]);
+			end;
+      for i := 0 to 9 do begin
+				ReqSkill2[i] := StrToInt(sl.Strings[55+i*2]);
+				ReqLV2[i] := StrToInt(sl.Strings[56+i*2]);
 			end;
 		end;
 		GSkillDB.AddObject(tl.ID, tl);
@@ -781,6 +801,47 @@ begin
 	Application.ProcessMessages;
 
 
+  DebugOut.Lines.Add('ID Table List loading...');
+	Application.ProcessMessages;
+	AssignFile(txt, AppPath + 'database\id_table.txt');
+	Reset(txt);
+  Readln(txt, str);
+		while not eof(txt) do begin
+		sl.Clear;
+		Readln(txt, str);
+		sl.DelimitedText := str;
+
+    for i := sl.Count to 16 do
+			sl.Add('0');
+		for i := 0 to 16 do
+			if (i <> 1) and (i <> 2) and (sl.Strings[i] = '') then sl.Strings[i] := '0';
+
+		tid := TIDTbl.Create;
+		with tid do begin
+			ID := StrToInt(sl.Strings[0]);
+      if (sl.Strings[1] <> '') then BroadCast := StrToInt(sl.Strings[1]);
+      if (sl.Strings[2] <> '') then ItemSummon := StrToInt(sl.Strings[2]);
+      if (sl.Strings[3] <> '') then MonsterSummon := StrToInt(sl.Strings[3]);
+      if (sl.Strings[4] <> '') then ChangeStatSkill := StrToInt(sl.Strings[4]);
+      if (sl.Strings[5] <> '') then ChangeOption := StrToInt(sl.Strings[5]);
+      if (sl.Strings[6] <> '') then SaveReturn := StrToInt(sl.Strings[6]);
+      if (sl.Strings[7] <> '') then ChangeLevel := StrToInt(sl.Strings[7]);
+      if (sl.Strings[8] <> '') then Warp := StrToInt(sl.Strings[8]);
+      if (sl.Strings[9] <> '') then Whois := StrToInt(sl.Strings[9]);
+      if (sl.Strings[10] <> '') then GotoSummonBanish := StrToInt(sl.Strings[10]);
+      if (sl.Strings[11] <> '') then KillDieAlive := StrToInt(sl.Strings[11]);
+      if (sl.Strings[12] <> '') then ChangeJob := StrToInt(sl.Strings[12]);
+      if (sl.Strings[13] <> '') then ChangeColorStyle := StrToInt(sl.Strings[13]);
+      if (sl.Strings[14] <> '') then AutoRawUnit := StrToInt(sl.Strings[14]);
+      if (sl.Strings[15] <> '') then Refine := StrToInt(sl.Strings[15]);
+    end;
+		IDTableDB.AddObject(tid.ID,tid);
+    end;
+	CloseFile(txt);
+	DebugOut.Lines.Add(Format('-> Total %d ID Table List loaded.', [j]));
+	Application.ProcessMessages;
+
+
 
 	//ギルド経験値テーブル読み込み
 	DebugOut.Lines.Add('Guild EXP database loading...');
@@ -806,7 +867,7 @@ begin
 	//エンブレム格納ディレクトリ
 	if not DirectoryExists(AppPath + 'emblem') then begin
 		if not CreateDir(AppPath + 'emblem') then begin
-			MessageBox(Handle, 'エンブレム格納ディレクトリが作成できません。', 'Weiss', MB_OK or MB_ICONSTOP);
+			MessageBox(Handle, 'エンブレム格納ディレクトリが作成できません。', 'darkWeiss', MB_OK or MB_ICONSTOP);
 			Application.Terminate;
 			exit;
 		end;
@@ -993,14 +1054,16 @@ var
 	sl  :TStringList;
 	ta	:TMapList;
 	tp  :TPlayer;
+  tk  :TKafra;
 	tc  :TChara;
 {パーティー機能追加}
 	tpa	:TParty;
+  tgc :TCastle;
 {パーティー機能追加ココまで}
 {キューペット}
-				tpe     :TPet;
-				tpd     :TPetDB;
-				tmd     :TMobDB;
+tpe     :TPet;
+tpd     :TPetDB;
+tmd     :TMobDB;
 {キューペットここまで}
 {ギルド機能追加}
 	tg  :TGuild;
@@ -1066,30 +1129,6 @@ begin
 						CName[8] := sl.Strings[14];
 					end;
 				end;
-{修正ココまで}
-				if ver >= 2 then begin
-					//アイテムロード
-					sl.Clear;
-					Readln(txt, str);
-					sl.DelimitedText := str;
-					j := StrToInt(sl.Strings[0]);
-					for i := 1 to j do begin
-						if ItemDB.IndexOf(StrToInt(sl.Strings[(i-1)*10+1])) <> -1 then begin
-							//tc.Item[i] := TItem.Create;
-							tp.Kafra.Item[i].ID := StrToInt(sl.Strings[(i-1)*10+1]);
-							tp.Kafra.Item[i].Amount := StrToInt(sl.Strings[(i-1)*10+2]);
-							tp.Kafra.Item[i].Equip := StrToInt(sl.Strings[(i-1)*10+3]);
-							tp.Kafra.Item[i].Identify := StrToInt(sl.Strings[(i-1)*10+4]);
-							tp.Kafra.Item[i].Refine := StrToInt(sl.Strings[(i-1)*10+5]);
-							tp.Kafra.Item[i].Attr := StrToInt(sl.Strings[(i-1)*10+6]);
-							for k := 0 to 3 do begin
-								tp.Kafra.Item[i].Card[k] := StrToInt(sl.Strings[(i-1)*10+7+k]);
-							end;
-							tp.Kafra.Item[i].Data := ItemDB.Objects[ItemDB.IndexOf(StrToInt(sl.Strings[(i-1)*10+1]))] as TItemDB;
-						end;
-					end;
-					CalcInventory(tp.Kafra);
-				end;
 				PlayerName.AddObject(tp.Name, tp);
 				Player.AddObject(tp.ID, tp);
 			end;
@@ -1120,9 +1159,7 @@ begin
 
   for i := 0 to PlayerName.Count - 1 do begin
 		tp := PlayerName.Objects[i] as TPlayer;
-		if tp.ver2 = 9 then i1 := 8
-	  else                i1 := 2;
-		for j := 0 to i1 do begin
+		for j := 0 to 8 do begin
 			if tp.CName[j] <> '' then begin
 				k := CharaName.IndexOf(tp.CName[j]);
 				if k <> -1 then begin
@@ -1150,12 +1187,16 @@ var
 	ver :integer;
 	str :string;
 	txt :TextFile;
+  add :TextFile;
 	sl  :TStringList;
 	ta	:TMapList;
 	tp  :TPlayer;
+  tk  :TKafra;
+  tbn :TBan;
 	tc  :TChara;
 {パーティー機能追加}
 	tpa	:TParty;
+  tgc :TCastle;
 {パーティー機能追加ココまで}
 {キューペット}
 				tpe     :TPet;
@@ -1172,6 +1213,7 @@ begin
 	sl.QuoteChar := '"';
 	sl.Delimiter := ',';
 
+  if (UseDatabase = false) then begin
 	//player.txt,chara.txtチェック
 	if not FileExists(AppPath + 'player.txt') then begin
 		AssignFile(txt, AppPath + 'player.txt');
@@ -1183,6 +1225,22 @@ begin
 		Writeln(txt, '0');
 		CloseFile(txt);
 	end;
+  end;
+  
+  if not FileExists(AppPath + 'kafra.txt') then begin
+		AssignFile(txt, AppPath + 'kafra.txt');
+		Rewrite(txt);
+    Writeln( txt, '##Weiss.KafraData.0x0002' );
+		CloseFile(txt);
+	end;
+
+  if not FileExists(AppPath + 'banned.txt') then begin
+		AssignFile(txt, AppPath + 'banned.txt');
+		Rewrite(txt);
+    Writeln( txt, '##Weiss.BannedData.0x0002' );
+		CloseFile(txt);
+	end;
+
 	if not FileExists(AppPath + 'chara.txt') then begin
 		AssignFile(txt, AppPath + 'chara.txt');
 		Rewrite(txt);
@@ -1204,6 +1262,14 @@ begin
                 Writeln( txt, '##Weiss.PetData.0x0002' );
 		CloseFile(txt);
 	end;
+
+  if not FileExists(AppPath + 'gcastle.txt') then begin
+		AssignFile(txt, AppPath + 'gcastle.txt');
+		Rewrite(txt);
+    Writeln( txt, '##Weiss.GCastleData.0x0002' );
+		CloseFile(txt);
+	end;
+
 {キューペットここまで}
 {NPCイベント追加}
 	//status.txtチェック
@@ -1239,7 +1305,8 @@ begin
 	end;
 {ギルド機能追加ココまで}
 	//アカウント情報ロード
-	DebugOut.Lines.Add('Player data loading...');
+  If (UseDatabase = false) then begin
+  DebugOut.Lines.Add('Player data loading...');
 	Application.ProcessMessages;
 	ver := 0;
 	AssignFile(txt, AppPath + 'player.txt');
@@ -1281,30 +1348,6 @@ begin
 						CName[8] := sl.Strings[14];
 					end;
 				end;
-{修正ココまで}
-				if ver >= 2 then begin
-					//アイテムロード
-					sl.Clear;
-					Readln(txt, str);
-					sl.DelimitedText := str;
-					j := StrToInt(sl.Strings[0]);
-					for i := 1 to j do begin
-						if ItemDB.IndexOf(StrToInt(sl.Strings[(i-1)*10+1])) <> -1 then begin
-							//tc.Item[i] := TItem.Create;
-							tp.Kafra.Item[i].ID := StrToInt(sl.Strings[(i-1)*10+1]);
-							tp.Kafra.Item[i].Amount := StrToInt(sl.Strings[(i-1)*10+2]);
-							tp.Kafra.Item[i].Equip := StrToInt(sl.Strings[(i-1)*10+3]);
-							tp.Kafra.Item[i].Identify := StrToInt(sl.Strings[(i-1)*10+4]);
-							tp.Kafra.Item[i].Refine := StrToInt(sl.Strings[(i-1)*10+5]);
-							tp.Kafra.Item[i].Attr := StrToInt(sl.Strings[(i-1)*10+6]);
-							for k := 0 to 3 do begin
-								tp.Kafra.Item[i].Card[k] := StrToInt(sl.Strings[(i-1)*10+7+k]);
-							end;
-							tp.Kafra.Item[i].Data := ItemDB.Objects[ItemDB.IndexOf(StrToInt(sl.Strings[(i-1)*10+1]))] as TItemDB;
-						end;
-					end;
-					CalcInventory(tp.Kafra);
-				end;
 				PlayerName.AddObject(tp.Name, tp);
 				Player.AddObject(tp.ID, tp);
 			end;
@@ -1330,7 +1373,109 @@ begin
 	CloseFile(txt);
 	DebugOut.Lines.Add(Format('*** Total %d player(s) data loaded.', [PlayerName.Count]));
 	Application.ProcessMessages;
+  end;
 
+	DebugOut.Lines.Add('Kafra data loading...');
+	Application.ProcessMessages;
+	ver := 0;
+	AssignFile(txt, AppPath + 'kafra.txt');
+	Reset(txt);
+	Readln(txt, str);
+	if str = '##Weiss.KafraData.0x0002' then begin
+		ver := 2;
+	end else begin
+		Reset(txt);
+	end;
+	while not eof(txt) do begin
+		sl.Clear;
+		Readln(txt, str);
+		sl.DelimitedText := str;
+		if ver >= 1 then begin
+			if (sl.Count = 1) and (StrToInt(sl.Strings[0]) <> 0) then begin
+				tk := TKafra.Create;
+				with tk do begin
+					PID := StrToInt(sl.Strings[0]);
+				end;
+				if ver >= 2 then begin
+					sl.Clear;
+					Readln(txt, str);
+					sl.DelimitedText := str;
+					j := StrToInt(sl.Strings[0]);
+					for i := 1 to j do begin
+						if ItemDB.IndexOf(StrToInt(sl.Strings[(i-1)*10+1])) <> -1 then begin
+							tk.Kafra.Item[i].ID := StrToInt(sl.Strings[(i-1)*10+1]);
+							tk.Kafra.Item[i].Amount := StrToInt(sl.Strings[(i-1)*10+2]);
+							tk.Kafra.Item[i].Equip := StrToInt(sl.Strings[(i-1)*10+3]);
+							tk.Kafra.Item[i].Identify := StrToInt(sl.Strings[(i-1)*10+4]);
+							tk.Kafra.Item[i].Refine := StrToInt(sl.Strings[(i-1)*10+5]);
+							tk.Kafra.Item[i].Attr := StrToInt(sl.Strings[(i-1)*10+6]);
+							for k := 0 to 3 do begin
+								tk.Kafra.Item[i].Card[k] := StrToInt(sl.Strings[(i-1)*10+7+k]);
+							end;
+							tk.Kafra.Item[i].Data := ItemDB.Objects[ItemDB.IndexOf(StrToInt(sl.Strings[(i-1)*10+1]))] as TItemDB;
+						end;
+					end;
+					CalcInventory(tk.Kafra);
+				end;
+				KafraDB.AddObject(tk.PID, tk);
+			end;
+		end;
+	end;
+	CloseFile(txt);
+	DebugOut.Lines.Add(Format('*** Total %d kafra(s) data loaded.', [KafraDB.Count]));
+	Application.ProcessMessages;
+
+  DebugOut.Lines.Add('Banned data loading...');
+	Application.ProcessMessages;
+	ver := 0;
+	AssignFile(txt, AppPath + 'banned.txt');
+	Reset(txt);
+	Readln(txt, str);
+  if str = '##Weiss.BannedData.0x0002' then begin
+		//ver := 2;
+	end else begin
+		Reset(txt);
+	end;
+	while not eof(txt) do begin
+		sl.Clear;
+		Readln(txt, str);
+		sl.DelimitedText := str;
+			if (sl.Count = 1) and (sl.Strings[0] <> '') then begin
+				tbn := TBan.Create;
+				with tbn do begin
+					BIP := sl.Strings[0];
+				end;
+        BannedDB.AddObject(tbn.BIP, tbn);
+      end;
+  end;
+	CloseFile(txt);
+
+  AssignFile(txt, AppPath + 'banned.txt');
+  AssignFile(add, AppPath + 'addban.txt');
+  if not FileExists(AppPath + 'addban.txt') then begin
+  Rewrite(add);
+  end else begin
+  Reset(add);
+  append(txt);
+  while not eof(add) do begin
+  sl.Clear;
+  Readln(add, str);
+  sl.DelimitedText := str;
+  if (sl.Count = 1) and (sl.Strings[0] <> '') and (BannedDB.IndexOf(tbn.BIP) = -1) then begin
+  tbn := TBan.Create;
+  tbn.BIP := sl.Strings[0];
+  BannedDB.AddObject(tbn.BIP, tbn);
+  Writeln(txt, sl.Delimitedtext);
+  end;
+  end;
+  Rewrite(add);
+  end;
+  CloseFile(add);
+  CloseFile(txt);
+
+	DebugOut.Lines.Add(Format('*** Total %d Banned data loaded.', [BannedDB.Count]));
+	Application.ProcessMessages;
+  
 	//キャラ情報ロード
 	DebugOut.Lines.Add('Character data loading...');
 	Application.ProcessMessages;
@@ -1351,7 +1496,7 @@ begin
 		sl.DelimitedText := str;
 		if ver >= 1 then begin
 {パーティー機能修正}
-			if (sl.Count <> 50) and (sl.Count <> 51) then continue;
+			if (sl.Count <> 51) and (sl.Count <> 52) and (sl.Count <> 53) and (sl.Count <> 54) then continue;
 {パーティー機能修正ココまで}
 		end else begin
 			if sl.Count <> 41 then continue;
@@ -1400,6 +1545,27 @@ begin
 			SaveMap       :=          sl.Strings[38];
 			SavePoint.X   := StrToInt(sl.Strings[39]);
 			SavePoint.Y   := StrToInt(sl.Strings[40]);
+
+      if (sl.Count = 51) then begin
+      Plag := StrToInt(sl.Strings[48]);
+      PLv := StrToInt(sl.Strings[49]);
+      ID := StrToInt(sl.Strings[50]);
+      end;
+      if (sl.Count = 54) then begin
+      Plag := StrToInt(sl.Strings[51]);
+      PLv := StrToInt(sl.Strings[52]);
+      ID := StrToInt(sl.Strings[53]);
+      end;
+      if (sl.Count = 52) then begin
+      Plag := StrToInt(sl.Strings[49]);
+      PLv := StrToInt(sl.Strings[50]);
+      ID := StrToInt(sl.Strings[51]);
+      end;
+      if (sl.Count = 53) then begin
+      Plag := StrToInt(sl.Strings[50]);
+      PLv := StrToInt(sl.Strings[51]);
+      ID := StrToInt(sl.Strings[52]);
+      end;
 
 			if ver >= 1 then begin
 				for i := 0 to 2 do begin
@@ -1481,6 +1647,10 @@ begin
 				tc.Skill[i].Data := SkillDB.IndexOfObject(i) as TSkillDB;
 			end;
 		end;
+    if (tc.Plag <> 0) then begin
+    tc.Skill[tc.Plag].Plag := true;
+    end;
+
 		sl.Clear;
 		Readln(txt, str);
 		sl.DelimitedText := str;
@@ -1490,6 +1660,7 @@ begin
 				k := StrToInt(sl.Strings[(i-1)*2+1]);
 				tc.Skill[k].Lv := StrToInt(sl.Strings[(i-1)*2+2]);
 				tc.Skill[k].Card := false;
+        tc.Skill[k].Plag := false;
 			end;
 		end;
 		//アイテムロード
@@ -1552,9 +1723,7 @@ begin
 {修正}
 	for i := 0 to PlayerName.Count - 1 do begin
 		tp := PlayerName.Objects[i] as TPlayer;
-		if tp.ver2 = 9 then i1 := 8
-	  else                i1 := 2;
-		for j := 0 to i1 do begin
+		for j := 0 to 8 do begin
 			if tp.CName[j] <> '' then begin
 				k := CharaName.IndexOf(tp.CName[j]);
 				if k <> -1 then begin
@@ -1572,6 +1741,45 @@ begin
 {修正ココまで}
 
 {パーティー機能追加}
+  DebugOut.Lines.Add('Castle data loading...');
+	Application.ProcessMessages;
+	AssignFile(txt, AppPath + 'gcastle.txt');
+	Reset(txt);
+	Readln(txt, str);
+
+
+	if str = '##Weiss.GCastleData.0x0002' then begin
+//		ver := 2;
+	end else begin
+		Reset(txt);
+	end;
+
+	while not eof(txt) do begin
+		sl.Clear;
+		Readln(txt, str);
+		sl.DelimitedText := str;
+		if sl.Count <> 17 then continue;
+		tgc := TCastle.Create;
+		with tgc do begin
+			Name := sl.Strings[0];
+      GID  := StrToInt(sl.Strings[1]);
+      GName:= sl.Strings[2];
+      GMName:=sl.Strings[3];
+      GKafra:=StrToInt(sl.Strings[4]);
+      EDegree:=StrToInt(sl.Strings[5]);
+      ETrigger:=StrToInt(sl.Strings[6]);
+      DDegree:=StrToInt(sl.Strings[7]);
+      DTrigger:=StrToInt(sl.Strings[8]);
+      for i := 0 to 7 do begin
+      GuardStatus[i] := StrToInt(sl.Strings[i+9]);
+      end;
+		end;
+		CastleList.AddObject(tgc.Name, tgc);
+	end;
+	CloseFile(txt);
+	DebugOut.Lines.Add(Format('*** Total %d Castle(s) data loaded.', [CastleList.Count]));
+	Application.ProcessMessages;
+
 
 	//パーティー情報ロード
 	DebugOut.Lines.Add('Party data loading...');
@@ -1853,7 +2061,8 @@ begin
 
                 if tpe.CharaID = 0 then begin
                         tp := Player.IndexofObject( tpe.PlayerID ) as TPlayer;
-                        with tp.Kafra.Item[ tpe.Index ] do begin
+                        tk := KafraDB.IndexOfObject(tpe.PlayerID) as TKafra;
+                        with tk.Kafra.Item[ tpe.Index ] do begin
                                 Attr    := 0;
                                 Card[0] := $FF00;
                                 Card[2] := tpe.PetID mod $10000;
@@ -1943,9 +2152,12 @@ var
 	txt :TextFile;
 	sl  :TStringList;
 	tp  :TPlayer;
+  tk  :TKafra;
+  tbn :TBan;
 	tc  :TChara;
 {パーティー機能追加}
 	tpa	:TParty;
+  tgc :TCastle;
 {パーティー機能追加ココまで}
 {キューペット}
         tpe :TPet;
@@ -1961,7 +2173,8 @@ begin
 	sl.QuoteChar := '"';
 	sl.Delimiter := ',';
 
-	if PlayerName.Count <> 0 then begin
+  if (UseDatabase = false) then begin
+  if PlayerName.Count <> 0 then begin
 		AssignFile(txt, AppPath + 'player.txt');
 		Rewrite(txt);
 		Writeln(txt, '##Weiss.PlayerData.0x0003');
@@ -1986,27 +2199,54 @@ begin
 				sl.Add(CName[8]);
 			end;
 			writeln(txt, sl.DelimitedText);
-			//アイテムデータ保存
+		end;
+		CloseFile(txt);
+	end;
+  end;
+
+	if KafraDB.Count <> 0 then begin
+		AssignFile(txt, AppPath + 'kafra.txt');
+		Rewrite(txt);
+		Writeln(txt, '##Weiss.KafraData.0x0002');
+		for i := 0 to KafraDB.Count - 1 do begin
+			tk := KafraDB.Objects[i] as TKafra;
+			sl.Clear;
+      sl.Add(IntToStr(tk.PID));
+			writeln(txt, sl.DelimitedText);
 			sl.Clear;
 			sl.Add('0');
 			cnt := 0;
 			for j := 1 to 100 do begin
-				if tp.Kafra.Item[j].ID <> 0 then begin
-					sl.Add(IntToStr(tp.Kafra.Item[j].ID));
-					sl.Add(IntToStr(tp.Kafra.Item[j].Amount));
-					sl.Add(IntToStr(tp.Kafra.Item[j].Equip));
-					sl.Add(IntToStr(tp.Kafra.Item[j].Identify));
-					sl.Add(IntToStr(tp.Kafra.Item[j].Refine));
-					sl.Add(IntToStr(tp.Kafra.Item[j].Attr));
-					sl.Add(IntToStr(tp.Kafra.Item[j].Card[0]));
-					sl.Add(IntToStr(tp.Kafra.Item[j].Card[1]));
-					sl.Add(IntToStr(tp.Kafra.Item[j].Card[2]));
-					sl.Add(IntToStr(tp.Kafra.Item[j].Card[3]));
+				if tk.Kafra.Item[j].ID <> 0 then begin
+					sl.Add(IntToStr(tk.Kafra.Item[j].ID));
+					sl.Add(IntToStr(tk.Kafra.Item[j].Amount));
+					sl.Add(IntToStr(tk.Kafra.Item[j].Equip));
+					sl.Add(IntToStr(tk.Kafra.Item[j].Identify));
+					sl.Add(IntToStr(tk.Kafra.Item[j].Refine));
+					sl.Add(IntToStr(tk.Kafra.Item[j].Attr));
+					sl.Add(IntToStr(tk.Kafra.Item[j].Card[0]));
+					sl.Add(IntToStr(tk.Kafra.Item[j].Card[1]));
+					sl.Add(IntToStr(tk.Kafra.Item[j].Card[2]));
+					sl.Add(IntToStr(tk.Kafra.Item[j].Card[3]));
 					Inc(cnt);
 				end;
 			end;
 			sl.Strings[0] := IntToStr(cnt);
 			writeln(txt, sl.DelimitedText);
+		end;
+		CloseFile(txt);
+	end;
+
+  if BannedDB.Count <> 0 then begin
+		AssignFile(txt, AppPath + 'banned.txt');
+		Rewrite(txt);
+		Writeln(txt, '##Weiss.BannedData.0x0002');
+		for i := 0 to BannedDB.Count - 1 do begin
+			tbn := BannedDB.Objects[i] as TBan;
+			sl.Clear;
+      sl.Add(tbn.BIP);
+			writeln(txt, sl.DelimitedText);
+			sl.Clear;
 		end;
 		CloseFile(txt);
 	end;
@@ -2067,6 +2307,9 @@ begin
 					sl.Add(IntToStr(MemoPoint[j].X));
 					sl.Add(IntToStr(MemoPoint[j].Y));
 				end;
+        sl.Add(IntToStr(Plag));
+        sl.Add(IntToStr(PLv));
+        sl.Add(IntToStr(ID));
 			end;
 			writeln(txt, sl.DelimitedText);
 			//スキルデータ保存
@@ -2167,6 +2410,31 @@ begin
 {NPCイベント追加ココまで}
 
 {パーティー機能追加}
+  AssignFile(txt, AppPath + 'gcastle.txt');
+	Rewrite(txt);
+	Writeln(txt, '##Weiss.GCastleData.0x0002');
+	for i := 0 to CastleList.Count - 1 do begin
+		tgc := CastleList.Objects[i] as TCastle;
+		sl.Clear;
+		with tgc do begin
+			sl.Add(Name);
+			sl.Add(IntToStr(GID));
+      sl.Add(GName);
+      sl.Add(GMName);
+      sl.Add(IntToStr(GKafra));
+      sl.Add(IntToStr(EDegree));
+      sl.Add(IntToStr(ETrigger));
+      sl.Add(IntToStr(DDegree));
+      sl.Add(IntToStr(DTrigger));
+      for j := 0 to 7 do begin
+      sl.Add(IntToStr(GuardStatus[j]));
+      end;
+		end;
+		writeln(txt, sl.DelimitedText);
+	end;
+	CloseFile(txt);
+
+
 	AssignFile(txt, AppPath + 'party.txt');
 	Rewrite(txt);
 	Writeln(txt, '##Weiss.PartyData.0x0002');
@@ -2269,8 +2537,10 @@ begin
         Writeln( txt, '##Weiss.PetData.0x0002' );
         for i := 0 to Player.Count - 1 do begin
                 tp := Player.Objects[i] as TPlayer;
+                tk := KafraDB.IndexOfObject(tp.ID) as TKafra;
+                if (tk = nil) then continue;
                 for j := 1 to 100 do begin
-                        with tp.Kafra.Item[j] do begin
+                        with tk.Kafra.Item[j] do begin
                                 if ( ID <> 0 ) and ( Amount > 0 ) and ( Card[0] = $FF00 ) then begin
                                         k := Card[2] + Card[3] * $10000;
                                         if PetList.IndexOf( k ) <> -1 then begin

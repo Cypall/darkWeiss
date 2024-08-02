@@ -1,3 +1,188 @@
+-- Version 2.9.0.1 --
+*Fixed bug in Theif skill Steal -- now relies on drop rate
+*Fixed bug in Rouge skill Snatcher -- now relies on drop rate
+*Changed GM command -- #job -- allows for wedding sprites and super novice
+*Fixed bug in second skill db requirement set
+*Changed GM command -- #blevel -- allows for 999 max level
+*Changed GM command -- #jlevel -- allows for 999 max level
+*Added Job -- Super Novice 
+
+-- Version 2.9.0.0 --
+*Fixed Bug in Assassin skill Poison Dust
+*Fixed Bug in Shop buying 0 items
+*Seperated Kafra Storage Data From Player Data -- added kafra.txt file
+*Added UseDatabase Option to darkWeiss.ini File
+	#Uses MySql Database and NEW Login Server when set to 1
+	#Doesn't Use MySql Database and NEW Login Server when set to 0
+*Added [Database] section to darkWeiss.ini File
+	#Stores passwords for the mysql databases
+*Added gloginname Option to darkWeiss.ini File
+	#stores the user name for the glogin database
+*Added gloginpass Option to darkWeiss.ini File
+	#stores the password for the glogin database
+*Added GM Command:
+	#kick -- kicks player from server -- uses gm permission field gotosummonbanish
+	->#kick playername
+*Added GM Command:
+	#kickall -- kicks all players from server -- uses gm permission field gotosummonbanish
+	->#kickall
+*Added Banned.txt/addban.txt file -- stores all IPs banned from the server
+*Added GM Command:
+	#ban -- bans player from server -- uses gm permission field gotosummonbanish
+	->#ban playername
+
+-- Version 2.8.0.1 --
+*Fixed Bug in Wizard skill Sight Trasher
+*Fixed Bug in Crusader skill Reflect Shield
+*Fixed Bug in Assassin skill Poison React
+*Fixed Bug in Wizard skill Quagmire
+*Fixed Bug in Assassin skill Poison Dust
+*Fixed Bug in Blacksmith skill Hammer Fall
+*Added User Count / Total Players to Caption
+*Fixed Bug in DropMultiplier Value
+
+-- Version 2.8.0.0 --
+*Added New Map Format Error Checking
+*Added Better error reporting to script loading
+*Changed darkWeiss.ini file -- Drop Values are now one value: DropMultiplier
+*Fixed Bug in Theif skill Steal
+*Fixed Bug in Rouge skill Snatcher
+*Fixed Bug in Wizard skill Sight Trasher
+*Fixed Assassin skill Poison React
+*Fixed Assassin skill Venom Dust
+*Fixed Hunter skill Spring Trap
+*Fixed Hunter skill Remove Trap
+*Fixed Hunter skill Detecting
+*Fixed Wizard skill Storm Gust
+*Fixed Wizard skill Meteor Storm
+*Fixed Wizard skill Quagmire
+*Fixed Bug in Assassin skill Enchant Poison
+*Fixed Blacksmith skill Hammer Fall
+*Fixed Crusader skill Auto Guard
+*Fixed Crusader skill Reflect Shield
+
+-- Version 2.7.0.1 --
+*Fixed Bug in Monk skill Triple attack pvp
+*Fixed Looter Monsters
+
+-- Version 2.7.0.0 --
+*Created Custom File Format For Maps
+*Fixed Bug in monster 'Stuck' on screen
+
+-- Version 2.6.0.1 --
+*Fixed Bug in Monk skill Body Relocation -- warp to straight line
+*Fixed Bug in Monk skill Body Relocation -- warp to solid objects
+*Fixed Bug in Splash skills
+*Fixed Bug in Own Emperium Attacking
+*Fixed Bug in Global Guild Wars Message
+*Fixed Bug in Stat limits
+
+-- Version 2.6.0.0 --
+*Fixed Bug in Item Disappearance
+*Fixed Bug in Rouge skill Snatcher
+*Fixed Bug in Theif skill Steal
+*Fixed Monk skill Triple Attack
+*Added Server Timer
+*Added Global Message Box to server window
+*Fixed GM Command #whois -- prints to game window -- !WARNING! cpu intensive
+*Added Player Command #server -- prints server software and version to game window
+	->#server
+*Added Shared Skill requirements to skill database -- allows more than one set of requirements for skills
+*Fixed Crusader Skill Defender
+*Fixed Crusader skill Shield Charge
+*Fixed Monk skill Body Relocation
+*Fixed Rouge skill Plagiarism
+*Added GM Command #monster -- spawns monster for amount entered
+	->#monster PORING 10
+
+-- Version 2.5.0.2 --
+*Fixed Bug in Merchant skill Discount
+*Fixed Bug in Rouge skill Gangster Paradise
+
+-- Version 2.5.0.1 --
+*Fixed Bug in Merchant skill Vending
+*Fixed Bug in Character Loading
+*Fixed Bug in Merchant skill Change Cart -- allows hidden from ago monsters
+*Fixed Bug in GM Hide Command
+*Fixed Bug in Theif skill Hide
+
+-- Version 2.5.0.0 --
+*Fixed Bug in Claiming more than 1 Guild Castle
+*Added PvPG mapinfo DB entry -- allows for guild wars pvp style maps
+*Fixed Bug in attacking Guild Mates in guild wars
+*Fixed Bug in attacking own guardians in guild wars
+*Fixed Bug in attacking own emperium in guild wars
+*Fixed Monk skill Iron Hand
+*Fixed Alchemist skill Axe Mastery
+*Fixed Sage skill Advanced Book
+*Fixed Blachsmith skill Weapon Research
+*Fixed Bard skill Musical Lesson
+*Fixed Dancer skill Dancing Lesson
+*Fixed Monk skill Dodge
+*Fixed Rouge skill Gangster Paradise
+*Fixed Rouge skill Compulsion Discount
+*Fixed Rouge skill Tunnel Drive
+*Fixed Rouge skill Zeny Steal
+*Fixed Rouge skill Raid
+*Fixed Rouge skill Strip Helm
+*Fixed Rouge skill Strip Shield
+*Fixed Rouge skill Strip Armor
+*Fixed Rouge skill Strip Weapon
+*Fixed Rouge skill Intimidate -- No Random Movement
+*Fixed Theif skill Steal -- No PvP
+*Fixed Rouge skill Snatcher -- No PvP
+*Added GlobalGMsg Option to darkWeiss.ini File
+	#Global Message Displayed when guild castle is taken by a guild
+*Added MapGMsg Option to darkWeiss.ini File
+	#Map Message Displayed when guild castle is taken by a guild
+*Fixed Load Character Bug to allow more than 3 characters
+
+-- Version 2.4.0.2 --
+*Fixed Bug in GM Command /bb
+
+-- Version 2.4.0.1 --
+*Fixed Bug in Guild Claim
+*Fixed Bug in Ago Monsters
+*Fixed Bug in Guardian Spawns
+*Fixed Bug in NPC command SetGuardStatus
+*Fixed Bug in NPC command Callguard
+*Fixed Bug in Guild Guardian #1
+*Fixed some Stability issues with server
+*Fixed warping bug in guild conqueor
+*Fixed Bug in guild skill Guild Approval and guild conqueor
+
+-- Version 2.4.0.0 --
+*Fixed Bug in guild exp integer overflow on first kill
+*Added Guild Seige -- All npc commands included in this
+*Fixed ygg leaf sp use bug
+*Fixed Bug in GM Hide Command
+*Added NPC Command:
+	#CallMyMob -- summons mob and ties it to npc that called it
+	->#callmymob EMPELIUM,197,197,3600000,7200000;
+*Added NPC Command:
+	#OnMyMobDead -- Fires All scripts after this point when mob dies
+	->#OnMyMobDead:
+*Fixed Bug in MonsterMob/Summon Slave skill
+
+-- Version 2.3.0.0 --
+*Fixed Bug in Memory Access/Type Cast error with monster mobs and field skills
+*Fixed Bug in Type Cast error with pvp character range skills
+*Changed NPC command ccolor to allow 77 colors
+*Removed Status Changes from pvp
+*Added GM Command:
+	#skillpoint -- changes character's skill points
+	->#skillpoint 20
+
+-- Version 2.2.0.0 --
+*Added hstyle to NPC script commands
+	#changes the style of players hair
+*Added ID Table Permissions File (Place In \database dir)
+	#Gives Permissions For GM Commands To Accounts
+
+-- Version 2.1.0.0 --
+*Fixed Disappearing Item Bug
+*Fixed Bug In Summon Monster Mob Deletion
+
 -- Version 2.0.0.5 --
 *Fixed bug in Card MaxHP/Sp Increase
 *Fixed Debug Output for npc deletion

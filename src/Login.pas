@@ -10,7 +10,7 @@ uses
 
 //==============================================================================
 // 関数定義
-		procedure sv1PacketProcess(Socket: TCustomWinSocket);
+		procedure sv1PacketProcess(Socket: TCustomWinSocket);  //edited by The Harbinger -- darkWeiss version
 //==============================================================================
 
 
@@ -51,6 +51,14 @@ begin
 
 				tp := PlayerName.Objects[PlayerName.IndexOf(userid)] as TPlayer;
 				if tp.Pass = userpass then begin
+        
+        if (BannedDB.IndexOf(Socket.RemoteAddress) <> - 1) then begin
+          ZeroMemory(@buf[0],23);
+					WFIFOW( 0, $006a);
+					WFIFOB( 2, 4);
+					Socket.SendBuf(buf, 23);
+          Exit;
+        end;
 
                                   {2重ログインチェック}
                                   if tp.Login = 1 then
@@ -220,7 +228,7 @@ var
 	len       :integer;
 	userid    :string;
 	userpass  :string;
-        txt :TextFile;
+  txt :TextFile;
 begin
 	len := Socket.ReceiveLength;
 
@@ -235,18 +243,17 @@ begin
 
 			DebugOut.Lines.Add('1:Login ID = ' + userid + ' Pass = ' + userpass);
 			DebugOut.Lines.Add('ver1 = ' + IntToStr(l) + ':ver2 = ' + IntToStr(w));
+
 			id := PlayerName.IndexOf(userid);
 			if id <> -1 then begin
-                           sv1PacketProcessSub(Socket,w,userid,userpass);
+      sv1PacketProcessSub(Socket,w,userid,userpass);
 			end else begin
-                        if not sv1PacketProcessAdd(Socket,w,userid,userpass) then
-                        begin
-
+      if not sv1PacketProcessAdd(Socket,w,userid,userpass) then begin
 				ZeroMemory(@buf[0],23);
 				WFIFOW( 0, $006a);
 				WFIFOB( 2, 0);
 				Socket.SendBuf(buf, 23);
-                          end;
+      end;
 			end;
 		end;
 	end;

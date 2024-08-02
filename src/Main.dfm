@@ -1,9 +1,9 @@
 object frmMain: TfrmMain
-  Left = 108
-  Top = 130
-  Width = 650
-  Height = 312
-  Caption = 'h c'
+  Left = 135
+  Top = 128
+  Width = 658
+  Height = 337
+  Anchors = []
   Color = clBtnFace
   Font.Charset = SHIFTJIS_CHARSET
   Font.Color = clWindowText
@@ -16,15 +16,6 @@ object frmMain: TfrmMain
   OnResize = FormResize
   PixelsPerInch = 96
   TextHeight = 14
-  object lbl00: TLabel
-    Left = 200
-    Top = 10
-    Width = 35
-    Height = 14
-    Alignment = taRightJustify
-    AutoSize = False
-    Caption = '('#180'-`)'
-  end
   object cmdStart: TButton
     Left = 4
     Top = 4
@@ -47,11 +38,10 @@ object frmMain: TfrmMain
   end
   object txtDebug: TMemo
     Left = 0
-    Top = 35
-    Width = 642
-    Height = 250
-    Align = alBottom
-    Anchors = [akLeft, akBottom]
+    Top = 32
+    Width = 649
+    Height = 277
+    Align = alCustom
     Color = clBlack
     Font.Charset = SHIFTJIS_CHARSET
     Font.Color = clBlue
@@ -62,6 +52,31 @@ object frmMain: TfrmMain
     ReadOnly = True
     ScrollBars = ssVertical
     TabOrder = 2
+  end
+  object Edit1: TEdit
+    Left = 256
+    Top = 6
+    Width = 289
+    Height = 22
+    Color = clBlack
+    Font.Charset = SHIFTJIS_CHARSET
+    Font.Color = clBlue
+    Font.Height = -12
+    Font.Name = 'MS P????'
+    Font.Style = []
+    MaxLength = 100
+    ParentFont = False
+    TabOrder = 3
+  end
+  object Button1: TButton
+    Left = 551
+    Top = 4
+    Width = 94
+    Height = 24
+    Caption = 'Send Message'
+    Enabled = False
+    TabOrder = 4
+    OnClick = Button1Click
   end
   object sv1: TServerSocket
     Active = False

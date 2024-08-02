@@ -39,8 +39,11 @@ var
 	len   :integer;
 	str1  :string;
 	tp    :TPlayer;
+  tp1   :TPlayer;
 	tc    :TChara;
+  tc1   :TChara;
         count:integer;
+        count2:integer;
 {NPCイベント追加}
 	mi    :MapTbl;
 {NPCイベント追加ココまで}
@@ -50,6 +53,49 @@ begin
 		Socket.ReceiveBuf(buf, len);
 		RFIFOW(0, cmd);
 		case cmd of
+    $0064:
+      begin
+//WFIFOL( 2, tp.ID);
+//WFIFOB( 6, tp.Login);
+//WFIFOB( 7, tp.Gender);
+//WFIFOW( 8, tp.ver2);
+//WFIFOB( 10, tp.GMMode);
+//WFIFOL( 11, tp.LoginID1);
+//WFIFOL( 15, tp.LoginID2);
+				RFIFOL( 2, l);
+        if (Player.IndexOf(l) = -1) then begin
+           count2 := 0;
+           tp1 := TPlayer.Create;
+           tp1.ID := l;
+           RFIFOB( 6, tp1.Login);
+           RFIFOB( 7, tp1.Gender);
+           RFIFOW( 8, tp1.ver2);
+           RFIFOB( 10, tp1.GMMode);
+           RFIFOL( 11, tp1.LoginID1);
+           RFIFOL( 15, tp1.LoginID2);
+           PlayerName.AddObject(tp1.Name, tp1);
+           Player.AddObject(tp1.ID, tp1);
+           for i := 0 to charaname.Count -1 do begin
+             tc1 := CharaName.Objects[i] as TChara;
+             if (tc1.ID = tp1.ID) then begin
+               tp1.CData[count2] := tc1;
+					     tp1.CData[count2].CharaNumber := count2;
+					     tp1.CData[count2].ID := tp1.ID;
+					     tp1.CData[count2].Gender := tp1.Gender;
+               count2 := count2 + 1;
+             end;
+           end;
+        end else begin
+          tp1 := Player.IndexOfObject(l) as TPlayer;
+          tp1.ID := l;
+          RFIFOB( 6, tp1.Login);
+          RFIFOB( 7, tp1.Gender);
+          RFIFOW( 8, tp1.ver2);
+          RFIFOB( 10, tp1.GMMode);
+          RFIFOL( 11, tp1.LoginID1);
+          RFIFOL( 15, tp1.LoginID2);
+        end;
+      end;
 		$0065: //キャラセレ鯖接続要求
 			begin
 				RFIFOL( 2, l);
@@ -68,6 +114,7 @@ begin
 						ZeroMemory(@buf[4], 24);
 						WFIFOW(0, $006b);
 						cnt := 0;
+
 						if tp.ver2 = 9 then w := 24 else w := 4;
 						if tp.ver2 = 9 then j := 5 else j := 3;
 						for i := 0 to j - 1 do begin

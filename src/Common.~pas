@@ -6,7 +6,7 @@ interface
 
 uses
 //Windows, Forms, Classes, SysUtils, ScktComp;
-	Windows, StdCtrls, MMSystem, Classes, SysUtils, ScktComp, List32;
+	Windows, StdCtrls, MMSystem, Classes, SysUtils, ScktComp, List32,tlhelp32;
 
 //==============================================================================
 // word型座標構造体(TPointはcardinal型座標)
@@ -128,6 +128,7 @@ type rDropItem = record
 	ID    :word;
 	Per   :cardinal;
 	Data  :TItemDB;
+  Stolen:cardinal;
 end;
 //------------------------------------------------------------------------------
 // モンスターデータベース
@@ -135,7 +136,7 @@ end;
 //Scale,Race,Ele,Mode,Speed,ADelay,aMotion,dMotion,Drop1id,Drop1per,Drop2id,
 //Drop2per,Drop3id,Drop3per,Drop4id,Drop4per,Drop5id,Drop5per,Drop6id,Drop6per,
 //Drop7id,Drop7per,Drop8id,Drop8per,MEXP,MVP1id,MVP1per,MVP2id,MVP2per,MVP3id,MVP3per
-type TMobDB = class
+type TMobDB = class //edited by The Harbinger -- darkWeiss version
 	ID          :word;
 	Name        :string;
 	JName       :string;
@@ -180,14 +181,48 @@ type TMobDB = class
 end;
 //------------------------------------------------------------------------------
 // MNAME,SLAVE_1,SLAVE_2,SLAVE_3,SLAVE_4,SLAVE_5,TOTALNUMSLAVES
-type TSlaveDB = class
+type TSlaveDB = class //added by The Harbinger -- darkWeiss version
   Name        :string;
   Slaves      :array[0..4] of integer;
   TotalSlaves :integer;
 end;
 //------------------------------------------------------------------------------
+// ID,ITEMLIST
+type TKafra = class //added by The Harbinger -- darkWeiss version
+    PID           :Cardinal;
+  	Kafra         :TItemList;
+
+  constructor Create;
+	destructor  Destroy; override;
+end;
+//------------------------------------------------------------------------------
+// BIP
+type TBan = class //added by The Harbinger -- darkWeiss version
+    BIP           :string;
+end;
+//------------------------------------------------------------------------------
+// ID,BROADCAST,ITEMSUMMON,MONSTERSUMMON,CHANGESTATSKILL,CHANGEOPTION,SAVERETURN,CHANGELEVEL,WARP,WHOIS,GOTOSUMMONBANISH,KILLDIEALIVE,CHANGEJOB,CHANGECOLORSTYLE,AUTORAWUNIT,REFINE
+type TIDTbl = class    //added by The Harbinger -- darkWeiss version
+  ID               :integer;
+  BroadCast        :integer;
+  ItemSummon       :integer;
+  MonsterSummon    :integer;
+  ChangeStatSkill  :integer;
+  ChangeOption     :integer;
+  SaveReturn       :integer;
+  ChangeLevel      :integer;
+  Warp             :integer;
+  Whois            :integer;
+  GotoSummonBanish :integer;
+  KillDieAlive     :integer;
+  ChangeJob        :integer;
+  ChangeColorStyle :integer;
+  AutoRawUnit      :integer;
+  Refine           :integer;
+end;
+//------------------------------------------------------------------------------
 // ID,Create ID,Number Created
-type TMArrowDB = class
+type TMArrowDB = class  //added by The Harbinger -- darkWeiss version
   ID        :integer;
   CID       :array[0..2] of integer;
   CNum      :array[0..2] of integer;
@@ -200,13 +235,14 @@ type rEXPDist = record
 end;
 //------------------------------------------------------------------------------
 // モンスターデータ
-type TMob = class
+type TMob = class //edited by The Harbinger -- darkWeiss version
 	ID          :cardinal;
 	Name        :string;
 	JID         :word;
 	Map         :string;
 	Point       :TPoint;
 	tgtPoint    :TPoint;
+  NextPoint   :TPoint;
 	Dir         :byte;
 	Point1      :TPoint;
 	Point2      :TPoint;
@@ -225,19 +261,23 @@ type TMob = class
 	SpawnTick   :cardinal;
 	SpawnType   :cardinal;
 	ATick       :cardinal;
+  NextFlag      :boolean;
 	MoveTick    :cardinal;
 	MoveWait    :cardinal;
 	DmgTick     :cardinal; //ノックバック
 	ppos        :integer;
 	pcnt        :integer;
 	path        :array[0..999] of byte; //キャラの経路(向きで記録されてます)
+  AMode       :byte;
 	ATarget     :cardinal;
 	AData       :Pointer;
 	ARangeFlag  :boolean;
+  MMode       :byte;
 	ATKPer      :word; //プロボックなどによる攻撃力補正
 	DEFPer      :word; //プロボックなどによる防御力補正
 	EXPDist     :array[0..31] of rEXPDist; //経験値配分用カウンタ
 	MVPDist     :array[0..31] of rEXPDist; //MVP判定用カウンタ
+  Slaves      :Array[1..12] of Cardinal;
 	Data        :TMobDB;
 {追加}
 	Element     :Byte;
@@ -246,11 +286,17 @@ type TMob = class
 	MDEF1       :Byte;
 	MDEF2       :Byte;
   SlaveCount  :Byte;
+  Stolen      :Cardinal;
 	isSummon    :Boolean;
   isLeader    :boolean;
+  isEmperium  :boolean;
+  isGuardian  :Cardinal;
   isSlave     :boolean;
 	isActive    :boolean; //Mode &  4 : アクティブ
-	LeaderID    :Cardinal; //取り巻き用
+	LeaderID    :Cardinal;
+  EmperiumID  :Cardinal;
+  GID         :Cardinal;
+  NPCID       :Cardinal; //取り巻き用
 {NPCイベント追加}
 	Event       :cardinal;
 {NPCイベント追加ココまで}
@@ -316,15 +362,18 @@ type TSkillDB = class
 	Data2      :array[1..10] of integer;
 	Range2     :byte;
 	Icon       :word;
-	Job        :array[0..20] of boolean;
-	ReqSkill   :array[0..9] of word;
-	ReqLV      :array[0..9] of word;
+	Job        :array[0..23] of boolean;
+	ReqSkill1   :array[0..9] of word;
+	ReqLV1      :array[0..9] of word;
+  ReqSkill2   :array[0..9] of word;
+	ReqLV2      :array[0..9] of word;
 end;
 //------------------------------------------------------------------------------
 // スキルデータ
 type TSkill = class
 	Lv          :word;
 	Card        :boolean;
+  Plag        :boolean;
 	//Up        :byte;
 	Tick        :cardinal; //時間制限有りのスキルのリミット
 	EffectLV    :word;     //時間制限有りのスキルの効果LV
@@ -459,7 +508,7 @@ type TeNPC = class
 end;
 //------------------------------------------------------------------------------
 //キャラクターデータ
-type TChara = class
+type TChara = class  //edited by The Harbinger -- darkWeiss version
 	//制御変数
 	ID	          :cardinal;
 	Socket        :TCustomWinSocket;
@@ -480,11 +529,15 @@ type TChara = class
 	JobLV         :word;
 	JobEXP        :cardinal;
 	SkillPoint    :word;
+  PLv           :word;
+  Plag          :word;
 	Zeny          :cardinal;
 	Stat1         :cardinal; //状態１
 	Stat2         :cardinal; //状態２
 	Option        :cardinal;
-    Optionkeep    :cardinal;
+  Optionkeep    :cardinal;
+  Hidden        :boolean;
+  Paradise      :boolean;
 	Karma         :cardinal;
 	Manner        :cardinal;
 
@@ -508,7 +561,7 @@ type TChara = class
 	HairColor     :word;
 	ClothesColor  :word;
 
-	ParamBase     :array[0..5] of byte;
+	ParamBase     :array[0..5] of word;
 	{
 	STR           :byte;
 	AGI           :byte;
@@ -528,7 +581,7 @@ type TChara = class
 	MemoPoint     :array[0..2] of TPoint;
 
 	//2行目
-	Skill         :array[0..330] of TSkill;
+	Skill         :array[0..335] of TSkill;
 
 	//3行目
 	Item          :array[1..100] of TItem;
@@ -544,9 +597,9 @@ type TChara = class
 	JobNextEXP    :cardinal;
 	Weight        :cardinal;
 	MaxWeight     :cardinal;
-	Bonus         :array[0..5] of byte;
-	Param         :array[0..5] of byte;
-	ParamUp       :array[0..5] of byte;
+	Bonus         :array[0..5] of word;
+	Param         :array[0..5] of word;
+	ParamUp       :array[0..5] of word;
 	WeaponType    :array[0..1] of word; //右手左手それぞれの武器のタイプ
 {追加}
 	WeaponLv      :array[0..1] of word; //それぞれの武器レベル
@@ -666,7 +719,11 @@ type TChara = class
 	MTargetType   :byte; //ADataの種類。0=to Mob, 1=to Player
 	MPoint        :rPoint;
 	MTick         :cardinal;
-
+  FieldTick1    :cardinal;
+  FieldTick2    :cardinal;
+  FieldCount    :word;
+  FSkill        :word;
+  
 	TalkNPCID     :cardinal;
 	UseItemID     :word;
 
@@ -697,7 +754,7 @@ type TPlayer = class
 	GMMode        :byte;
 	CName         :array[0..8] of string;
 	CData         :array[0..8] of TChara;
-	Kafra         :TItemList;
+	//Kafra         :TItemList;
 
 	LoginID1      :cardinal;
 	LoginID2      :cardinal;
@@ -722,6 +779,24 @@ type TParty = class
 end;
 {パーティー機能追加ココまで}
 //------------------------------------------------------------------------------
+type TCastle = class  //added by The Harbinger -- darkWeiss version
+	Name    :string;
+  GID     :word;
+  GName   :string;
+  GMName  :string;
+  GKafra  :integer;
+  EDegree :cardinal;
+  ETrigger:integer;
+  DDegree :cardinal;
+  DTrigger:integer;
+  GuardStatus:array [0..7] of integer;
+end;
+//------------------------------------------------------------------------------
+type TEmp = class //added by The Harbinger -- darkWeiss version
+	Map    :string;
+  EID    :cardinal;
+end;
+//------------------------------------------------------------------------------
 // 店売りアイテム
 type TShopItem = class
 	ID    :word;
@@ -739,7 +814,7 @@ type rScript = record
 end;
 //------------------------------------------------------------------------------
 // NPCデータ
-type TNPC = class
+type TNPC = class  //edited by The Harbinger -- darkWeiss version
 	ID          :cardinal;
 	Name        :string;
 {NPCイベント追加}
@@ -747,6 +822,7 @@ type TNPC = class
 	JID         :integer;
 {NPCイベント追加ココまで}
 	Map         :string;
+  Reg         :string;
 	Point       :TPoint;
 	Dir         :byte;
 	CType       :byte; //0=warp 1=shop 2=script 3=item 4=skill
@@ -763,6 +839,8 @@ type TNPC = class
 {NPCイベント追加}
 	ScriptInitS  :integer; //OnInitステップ
 	ScriptInitD  :Boolean; //OnInit実行済フラグ
+  ScriptInitMS :integer;
+  
 	ChatRoomID  :cardinal; //チャットルームID
 	Enable      :Boolean; //有効スイッチ
 {NPCイベント追加ココまで}
@@ -800,11 +878,12 @@ type NTimer = class
 	Done      :array of byte;//実行済みフラグ
 end;
 //マップ設定データ
-type MapTbl = class
+type MapTbl = class //edited by The Harbinger -- darkWeiss version
 	noMemo    :Boolean;
 	noSave    :Boolean;
 	noTele    :Boolean;
-  Pvp     :Boolean;
+  PvP       :Boolean;
+  PvPG      :Boolean;
 end;
 {NPCイベント追加ココまで}
 //------------------------------------------------------------------------------
@@ -1011,7 +1090,7 @@ const
 		0);
 //------------------------------------------------------------------------------
 // 変数
-var
+var   //edited by The Harbinger -- darkWeiss version
 	AppPath              :string;
 
 	ServerIP             :cardinal;
@@ -1028,9 +1107,7 @@ var
 	DisableLevelLimit      :boolean;
 	EnableMonsterKnockBack :boolean;
 	DisableEquipLimit      :boolean;
-	ItemDropType           :boolean;
-	ItemDropDenominator    :cardinal;
-	ItemDropPer            :cardinal;
+  DropMultiplier         :cardinal;
 	DisableFleeDown        :boolean;
 	DisableSkillLimit      :boolean;
 
@@ -1046,10 +1123,12 @@ var
 {アイテム製造追加ココまで}
 {パーティー機能追加}
 	PartyNameList	:TStringList;
+  CastleList    :TStringList;
+  EmpList       :TStringList;
 {パーティー機能追加ココまで}
 {キューペット}
 	PetDB      :TIntList32;
-        PetList    :TIntList32;
+  PetList    :TIntList32;
 {キューペットここまで}
 {チャットルーム機能追加}
 	ChatRoomList :TIntList32;
@@ -1086,6 +1165,9 @@ var
 	MobDBName  :TStringList;
   SlaveDBName:TStringList;
   MArrowDB   :TIntList32;
+  KafraDB    :TIntList32;
+  BannedDB   :TStringList;
+  IDTableDB  :TIntList32;
 	SkillDB    :TIntList32;
 	Player     :TIntList32;
 	PlayerName :TStringList;
@@ -1105,6 +1187,11 @@ var
 {キューペット}
 	NowPetID      :cardinal;
 {キューペットここまで}
+
+  Seconds       :cardinal;
+  Minutes       :cardinal;
+  Hours         :cardinal;
+  Days          :cardinal;
 
 	DebugCnt      :word;
 	id1           :cardinal;
@@ -1132,6 +1219,7 @@ var
 	mm              :array[0..30] of array[0..30] of rSearchMap;
 
 	buf             :array[0..32767] of byte;
+  buf2            :array[0..32767] of byte;
 	stra            :array[0..32767] of char;
 {オプション関連}
 	DefaultZeny     :cardinal;
@@ -1149,11 +1237,14 @@ SummonMonsterExp  :boolean;
 SummonMonsterAgo  :boolean;
 SummonMonsterName :boolean;
 SummonMonsterMob  :boolean;
+UseDatabase          :boolean;
+GlobalGMsg        :string;
+MapGMsg           :string;
 {オプション関連ここまで}
 //------------------------------------------------------------------------------
 // 関数定義
-		procedure MapLoad(MapName:string);
-		procedure MapMove(Socket:TCustomWinSocket; MapName:string; Point:TPoint);
+		procedure MapLoad(MapName:string);  //edited by The Harbinger -- darkWeiss version
+		procedure MapMove(Socket:TCustomWinSocket; MapName:string; Point:TPoint); //edited by The Harbinger -- darkWeiss version
 //------------------------------------------------------------------------------
 		procedure RFIFOB(index:word; var b:byte);
 		procedure RFIFOW(index:word; var w:word);
@@ -1170,12 +1261,12 @@ SummonMonsterMob  :boolean;
 //------------------------------------------------------------------------------
 		procedure PickUpItem(tc:TChara; l:Cardinal);
 
-		procedure CalcAbility(tc:TChara; td:TItemDB; o:Integer = 0);
+		procedure CalcAbility(tc:TChara; td:TItemDB; o:Integer = 0); //edited by The Harbinger -- darkWeiss version
 		procedure CalcEquip(tc:TChara);
-		procedure CalcSkill(tc:TChara; Tick:cardinal);
-		procedure CalcStat(tc:TChara; Tick:cardinal = 0);
+		procedure CalcSkill(tc:TChara; Tick:cardinal); //edited by The Harbinger -- darkWeiss version
+		procedure CalcStat(tc:TChara; Tick:cardinal = 0); //edited by The Harbinger -- darkWeiss version
 
-		procedure CalcLvUP(tc1:TChara; EXP:cardinal; JEXP:cardinal);
+		procedure CalcLvUP(tc1:TChara; EXP:cardinal; JEXP:cardinal); //edited by The Harbinger -- darkWeiss version
 
 		procedure SendCGetItem(tc:TChara; Index:word; Amount:word);
 		procedure SendCStat(tc:TChara; View:boolean = false);
@@ -1192,8 +1283,8 @@ SummonMonsterMob  :boolean;
 		function  UseFieldSkill(tc:TChara; Tick:Cardinal) : Integer;
 		function  UseTargetSkill(tc:TChara; Tick:Cardinal) : Integer;
 
-		procedure SendCSkillAtk1(tm:TMap; tc:TChara; ts:TMob; Tick:cardinal; dmg:Word; k:byte; PType:byte = 0);
-    procedure SendCSkillAtk2(tm:TMap; tc:TChara; tc1:TChara; Tick:cardinal; dmg:Word; k:byte; PType:byte = 0);
+		procedure SendCSkillAtk1(tm:TMap; tc:TChara; ts:TMob; Tick:cardinal; dmg:Word; k:byte; PType:byte = 0);  //edited by The Harbinger -- darkWeiss version
+    procedure SendCSkillAtk2(tm:TMap; tc:TChara; tc1:TChara; Tick:cardinal; dmg:Word; k:byte; PType:byte = 0);  //added by The Harbinger -- darkWeiss version
 
 		procedure CalcSkillTick(tm:TMap; tc:TChara; Tick:cardinal = 0);
 		function  DecSP(tc:TChara; SkillID:word; LV:byte) :boolean;
@@ -1207,7 +1298,7 @@ SummonMonsterMob  :boolean;
     procedure SendNData(Socket:TCustomWinSocket; tn:TNPC; ver2:Word; Use0079:boolean = false);
 		procedure SendPMove(Socket: TCustomWinSocket; te:TeNPC; before, after:TPoint; ver2:Word);
 {キューペット}
-                procedure SendPetMove(Socket: TCustomWinSocket; tc:TChara; target:TPoint);
+    procedure SendPetMove(Socket: TCustomWinSocket; tc:TChara; target:TPoint);
 {キューペットここまで}
 //------------------------------------------------------------------------------
     //地点スキル
@@ -1254,8 +1345,24 @@ SummonMonsterMob  :boolean;
 		procedure SendGuildInfo(tc:TChara; Tab:Byte; GuildM:boolean = false; AvoidSelf:boolean = false);
 		procedure SendGuildMCmd(tc:TChara; PacketLen:word; AvoidSelf:boolean = false);
 		procedure CalcGuildLvUP(tg:TGuild; tc:TChara; GEXP:cardinal);
-		procedure SendGLoginInfo(tg:TGuild; tc:TChara);
+		procedure SendGLoginInfo(tg:TGuild; tc:TChara);   //edited by The Harbinger -- darkWeiss version
 		function  GetGuildConUsers(tg:TGuild) : word;
+    procedure GuildDInvest(tn:TNPC); //added by The Harbinger -- darkWeiss version
+    procedure SpawnNPCMob(tn:TNPC;MobName:string;X:integer;Y:integer;SpawnDelay1:cardinal;SpawnDelay2:cardinal); //added by The Harbinger -- darkWeiss version
+    procedure CallGuildGuard(tn:TNPC;guard:integer); //added by The Harbinger -- darkWeiss version
+    procedure SetGuildKafra(tn:TNPC;mode:integer);  //added by The Harbinger -- darkWeiss version
+    procedure EnableGuildKafra(MapName:string;KafraName:string;Mode:integer); //added by The Harbinger -- darkWeiss version
+    procedure ClaimGuildCastle(ID:cardinal;MapName:string); //added by The Harbinger -- darkWeiss version
+    function  GetGuildKafra(tn:TNPC) : integer;  //added by The Harbinger -- darkWeiss version
+    function  GetGuildID(tn:TNPC) : word; //added by The Harbinger -- darkWeiss version
+    function  GetGuildEDegree(tn:TNPC) : cardinal; //added by The Harbinger -- darkWeiss version
+    function  GetGuildETrigger(tn:TNPC) : word; //added by The Harbinger -- darkWeiss version
+    function  GetGuildDDegree(tn:TNPC) : cardinal; //added by The Harbinger -- darkWeiss version
+    function  GetGuildDTrigger(tn:TNPC) : word; //added by The Harbinger -- darkWeiss version
+    function  CheckGuildID(tn:TNPC; tc:TChara) : word; //added by The Harbinger -- darkWeiss version
+    function  CheckGuildMaster(tn:TNPC; tc:TChara) : word; //added by The Harbinger -- darkWeiss version
+    function  GetGuildName(tn:TNPC) : string;  //added by The Harbinger -- darkWeiss version
+    function  GetGuildMName(tn:TNPC) : string; //added by The Harbinger -- darkWeiss version
 		function  GetGuildRelation(tg:TGuild; tc:TChara) : integer;
 		procedure KillGuildRelation(tg:TGuild; tg1:TGuild; tc:TChara; tc1:TChara; RelType:byte);
 		function  LoadEmblem(tg:TGuild) : word;
@@ -1500,8 +1607,20 @@ begin
 			end;
 		end else if (Skill[65].Lv <> 0) and (WeaponType[0] = 8) then begin //メイス
 			ATK[0][4] := Skill[65].Data.Data1[Skill[65].Lv];
+    end else if (Skill[107].Lv <> 0) then begin //added by The Harbinger -- darkWeiss version
+			ATK[0][4] := Skill[107].Data.Data1[Skill[107].Lv];
 		end else if (Skill[134].Lv <> 0) and (WeaponType[0] = 16) then begin //カタール
 			ATK[0][4] := Skill[134].Data.Data1[Skill[134].Lv];
+    end else if (Skill[226].Lv <> 0) and (WeaponType[0] = 6) then begin //added by The Harbinger -- darkWeiss version
+      ATK[0][4] := Skill[226].Data.Data1[Skill[226].Lv];
+    end else if (Skill[259].Lv <> 0) and (WeaponType[0] = 12) then begin //added by The Harbinger -- darkWeiss version
+      ATK[0][4] := Skill[259].Data.Data1[Skill[259].Lv]
+    end else if (Skill[274].Lv <> 0) and (WeaponType[0] = 15) then begin //added by The Harbinger -- darkWeiss version
+			ATK[0][4] := Skill[274].Data.Data1[Skill[274].Lv];
+    end else if (Skill[315].Lv <> 0) and (WeaponType[0] = 13) then begin //added by The Harbinger -- darkWeiss version
+      ATK[0][4] := Skill[315].Data.Data1[Skill[315].Lv];
+    end else if (Skill[323].Lv <> 0) and (WeaponType[0] = 14) then begin //added by The Harbinger -- darkWeiss version
+      ATK[0][4] := Skill[323].Data.Data1[Skill[323].Lv];
 		end;
 		//ディヴァインプロテクション
 		if Skill[22].Lv <> 0 then begin
@@ -1546,16 +1665,29 @@ begin
 		end else if (WeaponType[0] <> 0) and Skill[48].Card then begin   //本来の仕様？
 			DAPer := Skill[48].Data.Data1[Skill[48].Lv];
 			DAFix := Skill[48].Data.Data2[Skill[48].Lv];
+    end else if (Skill[263].Lv <> 0) then begin
+      DAPer := Skill[263].Data.Data1[Skill[263].Lv];
+			DAFix := Skill[263].Data.Data2[Skill[263].Lv];
+    end else if (Skill[263].Card) then begin
+      DAPer := Skill[263].Data.Data1[Skill[263].Lv];
+			DAFix := Skill[263].Data.Data2[Skill[263].Lv];
 		end else begin
 			DAPer := 0;
 			DAFix := 100;
 		end;
+    
 		//回避率増加スキル
 		if Skill[49].Lv <> 0 then begin
 			FLEE2 := Skill[49].Data.Data1[Skill[49].Lv];
 		end else begin
 			FLEE2 := 0;
 		end;
+    if Skill[107].Lv <> 0 then begin  //added by The Harbinger -- darkWeiss version
+      Hit := Hit + Skill[107].Data.Data1[Skill[107].Lv]
+    end;
+    if Skill[265].Lv <> 0 then begin  //added by The Harbinger -- darkWeiss version
+      FLEE1 := FLEE1 + Skill[265].Data.Data1[Skill[265].Lv]
+    end;
 {追加:119}
 		//グロリア(LUK+)
 		if Skill[75].Tick > Tick then begin
@@ -1573,8 +1705,8 @@ begin
 {追加:119}
 		//エンチャント_ポイズン
 		if Skill[138].Tick > Tick then begin
-			WElement[0] := 5;
-			WElement[1] := 5;
+			WElement[0] := 4;
+			WElement[1] := 4;
 		end;
 	end;
 end;
@@ -1733,6 +1865,7 @@ begin
 				ArmsFix[1] := Skill[133].Data.Data1[Skill[133].Lv];
 		end;
 {修正}
+
 		if Weapon = 11 then begin
 			//030318
 			ATK[0][0] := ATK[0][0] + Param[4]; //ステータスに表示される数字。弓の時はDEX+武器ATK
@@ -1905,8 +2038,16 @@ begin
 		//DebugOut.Lines.Add(Format('WElement: %d/%d', [WElement[0], WElement[1]]));
 		if Weapon = 16 then Critical := Critical * 2;
 		Inc(Range);
+    if ((MAXHP * MAXHPPer div 100) > 65535) then begin
+    MAXHP := 65535;
+    end else begin
 		MAXHP := MAXHP * MAXHPPer div 100;
+    end;
+    if ((MAXSP * MAXSPPer div 100) > 65535) then begin
+    MAXSP := 65535;
+    end else begin
 		MAXSP := MAXSP * MAXSPPer div 100;
+    end;
 		if HP > MAXHP then HP := MAXHP;
 		if SP > MAXSP then SP := MAXSP;
 		if Critical > 100 then Critical := 100;
@@ -2012,7 +2153,8 @@ begin
 	WFIFOW(0, $013a);
 	WFIFOW(2, tc.Range);
 	tc.Socket.SendBuf(buf, 4);
-	if View then begin
+
+  if View then begin
 		//見た目変更
 		WFIFOW(0, $00c3);
 		WFIFOL(2, tc.ID);
@@ -2031,7 +2173,11 @@ begin
 		WFIFOB(6, 8);
 		WFIFOB(7, tc.Shield);
 		tc.Socket.SendBuf(buf, 8);
+      //WFIFOB(6, 2);
+      //WFIFOB(7, tc.Weapon);
+      //tc.Socket.SendBuf(buf, 8);
 	end;
+
 end;
 //------------------------------------------------------------------------------
 procedure SendCStat1(tc:TChara; Mode:word; DType:word; Value:cardinal);
@@ -2405,21 +2551,38 @@ var
 	i,j :integer;
 	cnt :word;
 	tp  :TPlayer;
+  tk  :TKafra;
 begin
 	tp := tc.PData;
+  tk := KafraDB.IndexOfObject(tp.ID) as TKafra;
+  if (tk = nil) then begin
+  j := 0;
+  cnt := 0;
+  WFIFOW(0, $00a5);
+  WFIFOW(2, 4+j*10);
+  tc.Socket.SendBuf(buf, 4+j*10);
+  WFIFOW(0, $00a6);
+  WFIFOW(2, 4+j*20);
+  tc.Socket.SendBuf(buf, 4+j*20);
+  WFIFOW(0, $00f2);
+  WFIFOW(2, cnt);
+  WFIFOW(4, 100);
+  tc.Socket.SendBuf(buf, 6);
+  Exit;
+  end;
 	with tp do begin
 		cnt := 0;
 		//アイテムデータ
 		WFIFOW(0, $00a5);
 		j := 0;
 		for i := 1 to 100 do begin
-			if (tp.Kafra.Item[i].ID <> 0) and not tp.Kafra.Item[i].Data.IEquip then begin
+			if (tk.Kafra.Item[i].ID <> 0) and not tk.Kafra.Item[i].Data.IEquip then begin
 				WFIFOW( 4 +j*10, i);
-				WFIFOW( 6 +j*10, tp.Kafra.Item[i].Data.ID);
-				WFIFOB( 8 +j*10, tp.Kafra.Item[i].Data.IType);
-				WFIFOB( 9 +j*10, tp.Kafra.Item[i].Identify);
-				WFIFOW(10 +j*10, tp.Kafra.Item[i].Amount);
-				if tp.Kafra.Item[i].Data.IType = 10 then
+				WFIFOW( 6 +j*10, tk.Kafra.Item[i].Data.ID);
+				WFIFOB( 8 +j*10, tk.Kafra.Item[i].Data.IType);
+				WFIFOB( 9 +j*10, tk.Kafra.Item[i].Identify);
+				WFIFOW(10 +j*10, tk.Kafra.Item[i].Amount);
+				if tk.Kafra.Item[i].Data.IType = 10 then
 					WFIFOW(12 +j*10, 32768)
 				else
 					WFIFOW(12 +j*10, 0);
@@ -2433,25 +2596,25 @@ begin
 		WFIFOW(0, $00a6);
 		j := 0;
 		for i := 1 to 100 do begin
-			if (tp.Kafra.Item[i].ID <> 0) and tp.Kafra.Item[i].Data.IEquip then begin
+			if (tk.Kafra.Item[i].ID <> 0) and tk.Kafra.Item[i].Data.IEquip then begin
 				WFIFOW( 4 +j*20, i);
-				WFIFOW( 6 +j*20, tp.Kafra.Item[i].Data.ID);
-				WFIFOB( 8 +j*20, tp.Kafra.Item[i].Data.IType);
-				WFIFOB( 9 +j*20, tp.Kafra.Item[i].Identify);
-				with tp.Kafra.Item[i].Data do begin
+				WFIFOW( 6 +j*20, tk.Kafra.Item[i].Data.ID);
+				WFIFOB( 8 +j*20, tk.Kafra.Item[i].Data.IType);
+				WFIFOB( 9 +j*20, tk.Kafra.Item[i].Identify);
+				with tk.Kafra.Item[i].Data do begin
 					if (tc.JID = 12) and (IType = 4) and (Loc = 2) and
 						 ((View = 1) or (View = 2) or (View = 6)) then
 						WFIFOW(10 +j*20, 34)
 					else
 						WFIFOW(10 +j*20, Loc);
 				end;
-				WFIFOW(12 +j*20, tp.Kafra.Item[i].Equip);
-				WFIFOB(14 +j*20, tp.Kafra.Item[i].Attr);
-				WFIFOB(15 +j*20, tp.Kafra.Item[i].Refine);
-				WFIFOW(16 +j*20, tp.Kafra.Item[i].Card[0]);
-				WFIFOW(18 +j*20, tp.Kafra.Item[i].Card[1]);
-				WFIFOW(20 +j*20, tp.Kafra.Item[i].Card[2]);
-				WFIFOW(22 +j*20, tp.Kafra.Item[i].Card[3]);
+				WFIFOW(12 +j*20, tk.Kafra.Item[i].Equip);
+				WFIFOB(14 +j*20, tk.Kafra.Item[i].Attr);
+				WFIFOB(15 +j*20, tk.Kafra.Item[i].Refine);
+				WFIFOW(16 +j*20, tk.Kafra.Item[i].Card[0]);
+				WFIFOW(18 +j*20, tk.Kafra.Item[i].Card[1]);
+				WFIFOW(20 +j*20, tk.Kafra.Item[i].Card[2]);
+				WFIFOW(22 +j*20, tk.Kafra.Item[i].Card[3]);
 				Inc(j);
 				Inc(cnt);
 			end;
@@ -2459,9 +2622,9 @@ begin
 		WFIFOW(2, 4+j*20);
 		tc.Socket.SendBuf(buf, 4+j*20);
 		//個数表示
-		tp.Kafra.Count := cnt;
+		tk.Kafra.Count := cnt;
 		WFIFOW(0, $00f2);
-		WFIFOW(2, tp.Kafra.Count);
+		WFIFOW(2, tk.Kafra.Count);
 		WFIFOW(4, 100);
 		tc.Socket.SendBuf(buf, 6);
 	end;
@@ -2471,13 +2634,15 @@ procedure SendCSkillList(tc:TChara);
 var
 	i, j, k :integer;
 	b       :byte;
+  c,d     :byte;
 begin
 	//スキル送信
 	WFIFOW( 0, $010f);
 	j := 0;
 	for i := 1 to 330 do begin
 		//if (not tc.Skill[i].Data.Job[tc.JID]) and (not DisableSkillLimit) then continue;
-		if (not tc.Skill[i].Data.Job[tc.JID]) and (not tc.Skill[i].Card) and (not DisableSkillLimit) then continue;
+		if (not tc.Skill[i].Data.Job[tc.JID]) and (not tc.Skill[i].Card) and (not tc.Skill[i].Plag) and (not DisableSkillLimit) then continue;
+    if tc.Skill[i].Plag then tc.Skill[i].Lv := tc.PLv;
 		WFIFOW( 0+37*j+4, i);
 		WFIFOW( 2+37*j+4, tc.Skill[i].Data.SType);
 		WFIFOW( 4+37*j+4, 0);
@@ -2485,22 +2650,47 @@ begin
 		if tc.Skill[i].Lv <> 0 then
 			WFIFOW( 8+37*j+4, tc.Skill[i].Data.SP[tc.Skill[i].Lv])
 		else
-			WFIFOW( 8+37*j+4, tc.Skill[i].Data.SP[1]);
+    WFIFOW( 8+37*j+4, tc.Skill[i].Data.SP[1]);
 		WFIFOW(10+37*j+4, tc.Skill[i].Data.Range);
 		WFIFOS(12+37*j+4, tc.Skill[i].Data.IDC, 24);
 		b	:= 0;
 		if tc.Skill[i].Card and (not DisableSkillLimit) then begin
 			b := 0;
+    end else if tc.Skill[i].Plag and (not DisableSkillLimit) then begin
+      b := 0;
 		end else if tc.Skill[i].Lv = tc.Skill[i].Data.MasterLV then begin
 			b := 0;
 		end else if (tc.Skill[i].Data.MasterLV <> 0) then begin
 			b := 1;
-			for k := 0 to 4 do begin
-				if (tc.Skill[i].Data.ReqSkill[k] <> 0) and (tc.Skill[tc.Skill[i].Data.ReqSkill[k]].Lv < tc.Skill[i].Data.ReqLV[k]) then begin
+      c := 0;
+      d := 0;
+
+      for k := 0 to 4 do begin
+				if (tc.Skill[i].Data.ReqSkill1[k] <> 0) then begin
+					c := 1;
+				end;
+        if (tc.Skill[i].Data.ReqSkill2[k] <> 0) then begin
+					d := 1;
+				end;
+			end;
+
+      for k := 0 to 4 do begin
+				if ((tc.Skill[i].Data.ReqSkill1[k] <> 0) and (tc.Skill[tc.Skill[i].Data.ReqSkill1[k]].Lv < tc.Skill[i].Data.ReqLV1[k])) then begin
+					b := 0;
+					continue;
+			 	end;
+			end;
+
+      if (b = 0) and (d = 1) then begin
+      b := 1;
+      for k := 0 to 4 do begin
+        if ((tc.Skill[i].Data.ReqSkill2[k] <> 0) and (tc.Skill[tc.Skill[i].Data.ReqSkill2[k]].Lv < tc.Skill[i].Data.ReqLV2[k])) then begin
 					b := 0;
 					continue;
 				end;
-			end;
+      end;
+      end;
+
 		end;
 		WFIFOB(36+37*j+4, b);
 		Inc(j);
@@ -2847,14 +3037,23 @@ function SearchPInventory(tc:TChara; ItemID:word; IEquip:boolean):word;
 var
 	i   :integer;
 	tp  :TPlayer;
+  tk  :TKafra;
 begin
 	Result := 0;
 	tp := tc.PData;
+  tk := KafraDB.IndexOfObject(tp.ID) as TKafra;
+
+  if (tk = nil) then begin
+  tk := TKafra.Create;
+  tk.PID := tp.ID;
+  KafraDB.AddObject(tk.PID,tk);
+  end;
+
 	if IEquip then begin
 		for i := 1 to 100 do begin
 			//空きindexを探す
-			if tp.Kafra.Item[i].ID = 0 then begin
-				tp.Kafra.Item[i].Amount := 0;
+			if tk.Kafra.Item[i].ID = 0 then begin
+				tk.Kafra.Item[i].Amount := 0;
 				Result := i;
 				break;
 			end;
@@ -2862,15 +3061,15 @@ begin
 	end else begin
 		for i := 1 to 100 do begin
 			//同じアイテムを持ってるか探す
-			if tp.Kafra.Item[i].ID = ItemID then begin
+			if tk.Kafra.Item[i].ID = ItemID then begin
 				Result := i;
 				exit;
 			end;
 		end;
 		for i := 1 to 100 do begin
 			//空きindexを探す
-			if tp.Kafra.Item[i].ID = 0 then begin
-				tp.Kafra.Item[i].Amount := 0;
+			if tk.Kafra.Item[i].ID = 0 then begin
+				tk.Kafra.Item[i].Amount := 0;
 				Result := i;
 				break;
 			end;
@@ -2966,8 +3165,7 @@ begin
 {NPCイベント追加}
 	if (tn.JID = -1) then exit;
 {NPCイベント追加ココまで}
-
-	if tn.CType = 3 then begin
+	if (tn.CType = 3) then begin
 		WFIFOW( 0, $009d);
 		WFIFOL( 2, tn.ID);
 		WFIFOW( 6, tn.Item.ID);
@@ -4063,7 +4261,7 @@ begin
 	tg.EXP := tg.EXP + GEXP;
 	tg.MemberEXP[tc.GuildPos] := tg.MemberEXP[tc.GuildPos] + GEXP;
 
-	if (tg.EXP >= tg.NextEXP) then begin
+	if (tg.EXP >= tg.NextEXP) and (tg.NextEXP <> 0) then begin
 		//レベルアップ
 		while (tg.EXP >= tg.NextEXP) do begin
 			tg.EXP := tg.EXP - GExpTable[tg.LV];
@@ -4108,6 +4306,551 @@ begin
 			if (tg.Member[i].Login = 2) then Inc(w);
 		end;
 	end;
+	Result := w;
+end;
+//------------------------------------------------------------------------------
+procedure ClaimGuildCastle(ID:cardinal;MapName:string);
+var
+	i  :integer;
+  tg :TGuild;
+  tgc:TCastle;
+begin
+i := GuildList.IndexOf(ID);
+if (i <> -1) then begin
+tg := GuildList.Objects[i] as TGuild;
+tgc := TCastle.Create;
+		with tgc do begin
+			Name := MapName;
+      GID  := tg.ID;
+      GName:= tg.Name;
+      GMName:=tg.MasterName;
+      GKafra:=0;
+      EDegree:=0;
+      ETrigger:=0;
+      DDegree:=0;
+      DTrigger:=0;
+      for i := 0 to 7 do begin
+      GuardStatus[i] := 0;
+      end;
+		end;
+CastleList.AddObject(tgc.Name, tgc);
+end;
+end;
+//------------------------------------------------------------------------------
+procedure EnableGuildKafra(MapName:string;KafraName:string;Mode:integer);
+var
+	i,j,k,l,m,n  :integer;
+  tg           :TGuild;
+  tgc          :TCastle;
+  tm           :TMap;
+  tm1          :TMap;
+  tn1          :TNPC;
+  tc1          :TChara;
+begin
+					if Map.IndexOf(MapName) = -1 then
+						MapLoad(MapName);
+					tm1 := Map.Objects[Map.IndexOf(MapName)] as TMap;
+          tm := Map.Objects[Map.IndexOf(MapName)] as TMap;
+					if (Mode = 1) then begin
+						//enable
+						i := -1;
+						for k := 0 to tm1.NPC.Count - 1 do begin
+							tn1 := tm1.NPC.Objects[k] as TNPC;
+							if (tn1.Name = KafraName) then begin
+								i := 0;
+								break;
+							end;
+						end;
+						//if (tn1.ScriptInitS <> -1) then begin
+							//OnInitラベルを実行
+							//DebugOut.Lines.Add(Format('OnInit Event(%d)', [tn1.ID]));
+							//tc1 := TChara.Create;
+							//tc1.TalkNPCID := tn1.ID;
+							//tc1.ScriptStep := tn1.ScriptInitS;
+							//tc1.AMode := 3;
+							//tc1.AData := tn1;
+							//tc1.Login := 0;
+							//NPCScript(tc1,0,1);
+							//tn.ScriptInitD := true;
+							//tc1.Free;
+						//end;
+						if (i = 0) and (tn1.Enable = false) then begin
+							tn1.Enable := true;
+							for j := tn1.Point.Y div 8 - 2 to tn1.Point.Y div 8 + 2 do begin
+								for i := tn1.Point.X div 8 - 2 to tn1.Point.X div 8 + 2 do begin
+									for k := 0 to tm1.Block[i][j].CList.Count - 1 do begin
+										tc1 := tm1.Block[i][j].Clist.Objects[k] as TChara;
+										if (abs(tc1.Point.X - tn1.Point.X) < 16) and (abs(tc1.Point.Y - tn1.Point.Y) < 16) then begin
+											SendNData(tc1.Socket, tn1, tc1.ver2);
+										end;
+									end;
+								end;
+							end;
+						end;
+					end else begin
+						//disable
+						i := -1;
+						for k := 0 to tm1.NPC.Count - 1 do begin
+							tn1 := tm1.NPC.Objects[k] as TNPC;
+							if (tn1.Name = KafraName) then begin
+								i := 0;
+								break;
+							end;
+						end;
+						if (i = 0) and (tn1.Enable = true) then begin
+							tn1.Enable := false;
+							l := tm.TimerAct.IndexOf(tn1.ID);
+							if (l <> -1) then begin
+								//DebugOut.Lines.Add(Format('NPC Timer(%d) was deleted / Remaining Timer(%d)', [tn1.ID,tm.TimerAct.Count-1]));
+								tm.TimerAct.Delete(tm.TimerAct.IndexOf(tn1.ID));
+							end;
+							for j := tn1.Point.Y div 8 - 2 to tn1.Point.Y div 8 + 2 do begin
+								for i := tn1.Point.X div 8 - 2 to tn1.Point.X div 8 + 2 do begin
+									for k := 0 to tm1.Block[i][j].CList.Count - 1 do begin
+										tc1 := tm1.Block[i][j].Clist.Objects[k] as TChara;
+										if (abs(tc1.Point.X - tn1.Point.X) < 16) and (abs(tc1.Point.Y - tn1.Point.Y) < 16) then begin
+											WFIFOW(0, $0080);
+											WFIFOL(2, tn1.ID);
+											WFIFOB(6, 0);
+											tc1.Socket.SendBuf(buf, 7);
+										end;
+									end;
+								end;
+							end;
+						end;
+					end;
+				end;
+//------------------------------------------------------------------------------
+function GetGuildKafra(tn:TNPC) : integer;
+var
+  tgc:TCastle;
+  i  :integer;
+	w  :integer;
+begin
+	w := 0;
+  i := CastleList.IndexOf(tn.Reg);
+
+  if (i <> - 1) then begin
+  tgc := CastleList.Objects[i] as TCastle;
+  w := tgc.GKafra;
+  end else begin
+  w := 0;
+  end;
+
+	Result := w;
+end;
+//------------------------------------------------------------------------------
+procedure SetGuildKafra(tn:TNPC;mode:integer);
+var
+  tgc:TCastle;
+  i  :integer;
+begin
+  i := CastleList.IndexOf(tn.Reg);
+
+  if (i <> - 1) then begin
+  tgc := CastleList.Objects[i] as TCastle;
+  tgc.GKafra := mode;
+  end;
+
+end;
+//------------------------------------------------------------------------------
+procedure SpawnNPCMob(tn:TNPC;MobName:string;X:integer;Y:integer;SpawnDelay1:cardinal;SpawnDelay2:cardinal);
+var
+  i,j,k :integer;
+  m     :integer;
+  ts    :TMob;
+  tm    :TMap;
+  te    :TEmp;
+  tgc   :TCastle;
+begin
+          //DebugOut.Lines.Add(MobName);
+          tm := Map.Objects[Map.IndexOf(tn.Map)] as TMap;
+          ts := TMob.Create;
+					ts.Data := MobDBName.Objects[MobDBName.IndexOf(MobName)] as TMobDB;
+					ts.ID := NowMobID;
+					Inc(NowMobID);
+					ts.Name := ts.Data.JName;
+					ts.JID := ts.Data.ID;
+					ts.Map := tn.Map;
+          ts.Data.isLink :=false;
+          ts.NPCID := tn.ID;
+
+          if (X = 0) and (Y = 0) then begin
+          repeat
+					ts.Point.X := Random(tm.Size.X - 2);
+					ts.Point.Y := Random(tm.Size.y - 2);
+          until ((tm.gat[ts.Point.X][ts.Point.Y] and 1) <> 0);
+          end else begin
+					ts.Point.X := X;
+					ts.Point.Y := Y;
+          end;
+
+					ts.Dir := Random(8);
+					ts.HP := ts.Data.HP;
+					ts.Speed := ts.Data.Speed;
+
+					ts.SpawnDelay1 := SpawnDelay1;
+					ts.SpawnDelay2 := SpawnDelay2;
+
+					ts.SpawnType := 0;
+					ts.SpawnTick := 0;
+
+					ts.ATarget := 0;
+					ts.ATKPer := 100;
+					ts.DEFPer := 100;
+					ts.DmgTick := 0;
+
+          ts.Element := ts.Data.Element;
+
+          ts.Name := ts.Data.JName;
+
+					ts.Data.MEXP := 0;
+					ts.Data.EXP := 0;
+					ts.Data.JEXP := 0;
+
+           ts.isLooting := False;
+  						for j:= 1 to 10 do begin
+								ts.Item[j].ID := 0;
+								ts.Item[j].Amount := 0;
+								ts.Item[j].Equip := 0;
+								ts.Item[j].Identify := 0;
+								ts.Item[j].Refine := 0;
+								ts.Item[j].Attr := 0;
+								ts.Item[j].Card[0] := 0;
+								ts.Item[j].Card[1] := 0;
+								ts.Item[j].Card[2] := 0;
+								ts.Item[j].Card[3] := 0;
+						  end;
+              if ts.Data.isDontMove then
+              ts.MoveWait := 4294967295
+              else
+              ts.MoveWait := TimeGetTime() + 5000 + Cardinal(Random(10000));
+
+              if (ts.JID = 1288) then begin
+              ts.isEmperium := true;
+              m := CastleList.IndexOf(ts.Map);
+              if (m <> - 1) then begin
+              tgc := CastleList.Objects[m] as TCastle;
+              ts.GID := tgc.GID;
+              end;
+              k := EmpList.IndexOf(ts.Map);
+              if (k = -1) then begin
+              te := TEmp.Create;
+		          with te do begin
+              Map := ts.Map;
+              EID := ts.ID;
+              end;
+		          EmpList.AddObject(te.Map, te);
+              end;
+              end;
+
+          ts.isActive := ts.Data.isActive;
+
+					for j := 0 to 31 do begin
+						ts.EXPDist[j].CData := nil;
+						ts.EXPDist[j].Dmg := 0;
+					end;
+					if ts.Data.MEXP <> 0 then begin
+						for j := 0 to 31 do begin
+							ts.MVPDist[j].CData := nil;
+							ts.MVPDist[j].Dmg := 0;
+						end;
+						ts.MVPDist[0].Dmg := ts.Data.HP * 30 div 100; //FAに30%加算
+					end;
+          ts.isSummon := True;
+
+					tm.Mob.AddObject(ts.ID, ts);
+					tm.Block[ts.Point.X div 8][ts.Point.Y div 8].Mob.AddObject(ts.ID, ts);
+
+					//SendMData(tc.Socket, ts);
+					//SendBCmd(tm,ts.Point,41,tc,False);
+end;
+//------------------------------------------------------------------------------
+function CheckGuildID(tn:TNPC; tc:TChara) : word;
+var
+  tgc:TCastle;
+  i  :integer;
+	w  :word;
+begin
+	w := 0;
+  i := CastleList.IndexOf(tn.Reg);
+
+  if (i <> - 1) then begin
+  tgc := CastleList.Objects[i] as TCastle;
+  if (tgc.GID = tc.GuildID) then begin
+  w := 1;
+  end;
+  end else begin
+  w := 0;
+  end;
+
+	Result := w;
+end;
+//------------------------------------------------------------------------------
+function CheckGuildMaster(tn:TNPC; tc:TChara) : word;
+var
+  tgc:TCastle;
+  i  :integer;
+	w  :word;
+begin
+	w := 0;
+  i := CastleList.IndexOf(tn.Reg);
+
+  if (i <> - 1) then begin
+  tgc := CastleList.Objects[i] as TCastle;
+  if (tgc.GMName = tc.Name) then begin
+  w := 1;
+  end;
+  end else begin
+  w := 0;
+  end;
+
+	Result := w;
+end;
+//------------------------------------------------------------------------------
+function GetGuildID(tn:TNPC) : word;
+var
+  tgc:TCastle;
+  i  :integer;
+	w  :word;
+begin
+	w := 0;
+  i := CastleList.IndexOf(tn.Reg);
+
+  if (i <> - 1) then begin
+  tgc := CastleList.Objects[i] as TCastle;
+  w := tgc.GID;
+  end else begin
+  w := 0;
+  end;
+
+	Result := w;
+end;
+//------------------------------------------------------------------------------
+procedure GuildDInvest(tn:TNPC);
+var
+  tgc:TCastle;
+  i,k  :integer;
+  ts  :TMob;
+  tm  :TMap;
+begin
+  i := CastleList.IndexOf(tn.Reg);
+
+  if (i <> - 1) then begin
+  tgc := CastleList.Objects[i] as TCastle;
+  tm := Map.Objects[Map.IndexOf(tn.Reg)] as TMap;
+  if (tgc.DTrigger < 2) then begin
+  tgc.DDegree := tgc.DDegree + 10000;
+  tgc.DTrigger := tgc.DTrigger + 1;
+  for k := 0 to tm.Mob.Count - 1  do begin
+  ts := tm.Mob.Objects[k] as TMob;
+  if (ts.isGuardian = tgc.GID) then begin
+  ts.HP := ts.HP + 2000;
+  end;
+  end;
+  end;
+  end;
+  
+end;
+//------------------------------------------------------------------------------
+procedure CallGuildGuard(tn:TNPC;guard:integer);
+var
+  tgc        :TCastle;
+  i,j,k,l,m  :integer;
+  ts         :TMob;
+  tm         :TMap;
+  te         :TEmp;
+begin
+          //guard := guard - 1;
+          tm := Map.Objects[Map.IndexOf(tn.Map)] as TMap;
+	        j := CastleList.IndexOf(tm.Name);
+          if (j <> - 1) then begin
+          tgc := CastleList.Objects[j] as TCastle;
+          j := EmpList.IndexOf(tm.Name);
+          if (j <> - 1) then te := EmpList.Objects[j] as TEmp;
+          ts := TMob.Create;
+          //if (tgc.GuardStatus[guard] = 1) then begin
+          case guard of
+          0,1,2:
+          begin
+					ts.Data := MobDBName.Objects[MobDBName.IndexOf('SOLDIER_GUARDIAN')] as TMobDB;
+          end;
+          3,4:
+          begin
+          ts.Data := MobDBName.Objects[MobDBName.IndexOf('ARCHER_GUARDIAN')] as TMobDB;
+          end;
+          5,6,7:
+          begin
+          ts.Data := MobDBName.Objects[MobDBName.IndexOf('KNIGHT_GUARDIAN')] as TMobDB;
+          end;
+          end;
+					ts.ID := NowMobID;
+					Inc(NowMobID);
+					ts.Name := ts.Data.JName;
+					ts.JID := ts.Data.ID;
+					ts.Map := tm.Name;
+          ts.Data.isLink :=false;
+          ts.isGuardian := tgc.GID;
+
+          if (te <> nil) then begin
+          ts.EmperiumID := te.EID;
+          end else begin
+          ts.EmperiumID := 0;
+          end;
+
+          repeat
+					ts.Point1.X := Random(tm.Size.X - 2);
+					ts.Point1.Y := Random(tm.Size.y - 2);
+          until ((tm.gat[ts.Point1.X][ts.Point1.Y] and 1) <> 0);
+
+          ts.Point := ts.Point1;
+
+					ts.Dir := Random(8);
+					ts.HP := ts.Data.HP + (tgc.DTrigger * 2000);
+					ts.Speed := ts.Data.Speed;
+					ts.SpawnDelay1 := $7FFFFFFF;
+					ts.SpawnDelay2 := 0;
+					ts.SpawnType := 0;
+					ts.SpawnTick := 0;
+					if ts.Data.isDontMove then
+						ts.MoveWait := $FFFFFFFF
+					else
+          ts.MoveWait := timeGetTime();
+					ts.ATarget := 0;
+					ts.ATKPer := 100;
+					ts.DEFPer := 100;
+					ts.DmgTick := 0;
+          ts.Element := ts.Data.Element;
+          ts.Name := ts.Data.JName;
+          ts.isActive := ts.Data.isActive;
+					ts.MoveWait := timeGetTime();
+					for j := 0 to 31 do begin
+						ts.EXPDist[j].CData := nil;
+						ts.EXPDist[j].Dmg := 0;
+					end;
+					if ts.Data.MEXP <> 0 then begin
+						for j := 0 to 31 do begin
+							ts.MVPDist[j].CData := nil;
+							ts.MVPDist[j].Dmg := 0;
+						end;
+						ts.MVPDist[0].Dmg := ts.Data.HP * 30 div 100; //FAに30%加算
+					end;
+          ts.isSummon := True;
+					tm.Mob.AddObject(ts.ID, ts);
+					tm.Block[ts.Point.X div 8][ts.Point.Y div 8].Mob.AddObject(ts.ID, ts);
+          //end;
+          end;
+end;
+//------------------------------------------------------------------------------
+function GetGuildEDegree(tn:TNPC) : cardinal;
+var
+  tgc:TCastle;
+  i  :integer;
+	w  :cardinal;
+begin
+	w := 0;
+  i := CastleList.IndexOf(tn.Reg);
+
+  if (i <> - 1) then begin
+  tgc := CastleList.Objects[i] as TCastle;
+  w := tgc.EDegree;
+  end else begin
+  w := 0;
+  end;
+
+	Result := w;
+end;
+//------------------------------------------------------------------------------
+function GetGuildETrigger(tn:TNPC) : word;
+var
+  tgc:TCastle;
+  i  :integer;
+	w  :word;
+begin
+	w := 0;
+  i := CastleList.IndexOf(tn.Reg);
+
+  if (i <> - 1) then begin
+  tgc := CastleList.Objects[i] as TCastle;
+  w := tgc.ETrigger;
+  end else begin
+  w := 0;
+  end;
+
+	Result := w;
+end;
+//------------------------------------------------------------------------------
+function GetGuildDDegree(tn:TNPC) : cardinal;
+var
+  tgc:TCastle;
+  i  :integer;
+	w  :cardinal;
+begin
+	w := 0;
+  i := CastleList.IndexOf(tn.Reg);
+
+  if (i <> - 1) then begin
+  tgc := CastleList.Objects[i] as TCastle;
+  w := tgc.DDegree;
+  end else begin
+  w := 0;
+  end;
+
+	Result := w;
+end;
+//------------------------------------------------------------------------------
+function GetGuildDTrigger(tn:TNPC) : word;
+var
+  tgc:TCastle;
+  i  :integer;
+	w  :word;
+begin
+	w := 0;
+  i := CastleList.IndexOf(tn.Reg);
+
+  if (i <> - 1) then begin
+  tgc := CastleList.Objects[i] as TCastle;
+  w := tgc.DTrigger;
+  end else begin
+  w := 0;
+  end;
+
+	Result := w;
+end;
+//------------------------------------------------------------------------------
+function GetGuildName(tn:TNPC) : string;
+var
+  tgc:TCastle;
+  i  :integer;
+	w  :string;
+begin
+	w := '';
+  i := CastleList.IndexOf(tn.Reg);
+  if (i <> - 1) then begin
+  tgc := CastleList.Objects[i] as TCastle;
+  w := tgc.GName;
+  end else begin
+  w := '$guildname';
+  end;
+
+	Result := w;
+end;
+//------------------------------------------------------------------------------
+function GetGuildMName(tn:TNPC) : string;
+var
+  tgc:TCastle;
+  i  :integer;
+	w  :string;
+begin
+	w := '';
+  i := CastleList.IndexOf(tn.Reg);
+  if (i <> - 1) then begin
+  tgc := CastleList.Objects[i] as TCastle;
+  w := tgc.GMName;
+  end else begin
+  w := '$guildmaster';
+  end;
+
 	Result := w;
 end;
 //------------------------------------------------------------------------------
@@ -4266,6 +5009,7 @@ procedure MapLoad(MapName:string);
 var
 	i,j,k,l :integer;
 	i1,g,ii :integer;
+  m       :integer;
   x,p       :integer;
 	cnt     :array[0..3] of integer;
 	lines   :integer;
@@ -4273,18 +5017,21 @@ var
 	SDelay  :cardinal;
 	w       :word;
 	str     :string;
+  str2    :string;
 	ScriptPath :string;
 	Tick    :cardinal;
 	dat     :TMemoryStream;
-	//dat2   :TMemoryStream;
 	txt     :TextFile;
 	tm      :TMap;
 	tn      :TNPC;
 	tn1     :TNPC;
 	ts      :TMob;
+  tgc     :TCastle;
+  te      :TEmp;
 	ts0     :TMob;
   ts1     :TMob;
   tss     :TSlaveDB;
+  tc1     :TChara;
 	h  :array[0..3] of single;
 	maptype :integer;
 	sl:TStringList;
@@ -4297,8 +5044,9 @@ var
 {NPCイベント追加ココまで}
 begin
 	MapName := ChangeFileExt(MapName, '');
+  MapName := LowerCase(MapName);
+
 	dat := TMemoryStream.Create; //読み込み用メモリバッファ
-	//dat2 := TMemoryStream.Create;
 
 	if MapList.IndexOf(MapName) = -1 then begin
 		DebugOut.Lines.Add('Map Not found : ' + MapName);
@@ -4310,52 +5058,29 @@ begin
 	Map.AddObject(MapName, tm);
 	tm.Mode := 1;
   
-	DebugOut.Lines.Add('Loading mapfile... : ' + MapName + '.gat');
-	dat.LoadFromFile(AppPath + 'map\' + MapName + '.gat');
-	SetLength(str, 4);
-	dat.Read(str[1], 4);
-	//dat2.Write(str[1], 4);
-	if str <> 'GRAT' then begin
-		DebugOut.Lines.Add('Mapfile error 500 : ' + MapName + '.gat');
+	DebugOut.Lines.Add('Loading mapfile... : ' + MapName + '.dwm');
+	dat.LoadFromFile(AppPath + 'map\' + MapName + '.dwm');
+
+	SetLength(str, 3);
+	dat.Read(str[1], 3);
+
+	if str <> 'DWM' then begin
+		DebugOut.Lines.Add('Mapfile error 500 : ' + MapName + '.dwm');
 		tm.Free;
 		exit;
 	end;
 
 	dat.Read(w, 2);
-	//dat2.Write(w, 2);
 	dat.Read(tm.Size.X, 4);
 	dat.Read(tm.Size.Y, 4);
-	//dat2.Write(tm.Size.X, 4);
-	//dat2.Write(tm.Size.Y, 4);
+
 	SetLength(tm.gat, tm.Size.X, tm.Size.Y);
 	for j := 0 to tm.Size.Y - 1 do begin
 		for i := 0 to tm.Size.X - 1 do begin
-			dat.Read(h[0], 4);
-			dat.Read(h[1], 4);
-			dat.Read(h[2], 4);
-			dat.Read(h[3], 4);
-			dat.Read(maptype, 4);
-			if maptype = 5 then maptype := 0;
-			if (i = 0) or (j = 0) or (i = tm.Size.X - 1) or (j = tm.Size.Y - 1) then begin
-				//030317 画面端は強制的に移動不可に
-				tm.gat[i][j] := 0;
-			end else if (maptype and 1) = 0 then begin
-				if (h[0] > 3) or (h[1] > 3) or (h[2] > 3) or (h[3] > 3) then
-					tm.gat[i][j] := 3
-				else
-					tm.gat[i][j] := 1;
-			end else
-				tm.gat[i][j] := 0;
-			//dat2.Write(h[0], 4);
-			//dat2.Write(h[1], 4);
-			//dat2.Write(h[2], 4);
-			//dat2.Write(h[3], 4);
-			//dat2.Write(maptype, 4);
+        dat.Read(tm.gat[i][j],1);
 		end;
 	end;
 	dat.Free;
-	//dat2.SaveToFile(AppPath + 'map\' + MapName + '_.gat');
-	//dat2.Free;
 
 	tm.BlockSize.X := (tm.Size.X + 7) div 8;
 	tm.BlockSize.Y := (tm.Size.Y + 7) div 8;
@@ -4380,6 +5105,8 @@ begin
 	for i1 := 0 to ScriptList.Count - 1 do begin
 		AssignFile(txt, ScriptList.Strings[i1]);
 		Reset(txt);
+    lines := 0;
+    ScriptPath := ExtractRelativePath(AppPath, ScriptList.Strings[i1]);
 		while not eof(txt) do begin
 			Readln(txt, str);
 			Inc(lines);
@@ -4388,7 +5115,11 @@ begin
 			sl.DelimitedText := str;
 			if sl.Count = 4 then begin
 				sl1.DelimitedText := sl.Strings[0];
+        sl1.Strings[0] := LowerCase(sl1.Strings[0]);
 				if ChangeFileExt(sl1.Strings[0], '') = MapName then begin
+      if (ExtractFileExt(sl1.Strings[0]) <> '.dwm') then begin
+        DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: Syntax Error: Invalid Map', [ScriptPath, lines]));
+			end;
 	// ワープポイント ------------------------------------------------------------
 					if sl.Strings[1] = 'warp' then begin
 						tn := TNPC.Create;
@@ -4473,7 +5204,6 @@ begin
 						tn.CType := 2;
 						sl1.DelimitedText := sl.Strings[3];
 						tn.JID := StrToInt(sl1.Strings[0]);
-						ScriptPath := ExtractRelativePath(AppPath, ScriptList.Strings[i1]);
 {NPCイベント追加}
 						tn.ScriptInitS := -1;
 						tn.ScriptInitD := false;
@@ -4505,7 +5235,7 @@ begin
 							2:	sl1.DelimitedText := sl.Strings[1];
 							else
 								begin
-									DebugOut.Lines.Add(Format('%s %.4d: syntax error', [ScriptPath, lines]));
+									DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: Syntax Error', [ScriptPath, lines]));
 									exit;
 								end;
 							end;
@@ -4513,7 +5243,7 @@ begin
 							sl.Delete(0);
 							if str = 'mes' then begin //------- 1 mes
 								if sl1.Count <> 1 then begin
-									DebugOut.Lines.Add(Format('%s %.4d: [mes] function error', [ScriptPath, lines]));
+									DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [mes] function error', [ScriptPath, lines]));
 									exit;
 								end;
 								SetLength(tn.Script, k + 1);
@@ -4525,7 +5255,7 @@ begin
 								Inc(k);
 							end else if str = 'next' then begin //------- 2 next
 								if sl1.Count <> 0 then begin
-									DebugOut.Lines.Add(Format('%s %.4d: [next] function error', [ScriptPath, lines]));
+									DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [next] function error', [ScriptPath, lines]));
 									exit;
 								end;
 								SetLength(tn.Script, k + 1);
@@ -4533,7 +5263,7 @@ begin
 								Inc(k);
 							end else if str = 'close' then begin //------- 3 close
 								if sl1.Count <> 0 then begin
-									DebugOut.Lines.Add(Format('%s %.4d: [close] function error', [ScriptPath, lines]));
+									DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [close] function error', [ScriptPath, lines]));
 									exit;
 								end;
 								SetLength(tn.Script, k + 1);
@@ -4541,11 +5271,11 @@ begin
 								Inc(k);
 							end else if str = 'menu' then begin //------- 4 menu
 								if sl1.Count <> sl1.Count div 2 * 2 then begin
-									DebugOut.Lines.Add(Format('%s %.4d: [menu] function error', [ScriptPath, lines]));
+									DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [menu] function error', [ScriptPath, lines]));
 									exit;
 								end;
 								if sl1.Count > 40 then begin
-									DebugOut.Lines.Add(Format('%s %.4d: [menu] too many selections', [ScriptPath, lines]));
+									DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [menu] too many selections', [ScriptPath, lines]));
 									exit;
 								end;
 								SetLength(tn.Script, k + 1);
@@ -4563,7 +5293,7 @@ begin
 								Inc(k);
 							end else if str = 'goto' then begin //------- 5 goto
 								if sl1.Count <> 1 then begin
-									DebugOut.Lines.Add(Format('%s %.4d: [goto] function error', [ScriptPath, lines]));
+									DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [goto] function error', [ScriptPath, lines]));
 									exit;
 								end;
 								SetLength(tn.Script, k + 1);
@@ -4574,12 +5304,12 @@ begin
 								Inc(k);
 							end else if str = 'cutin' then begin //------- 6 cutin
 								if sl1.Count <> 2 then begin
-									DebugOut.Lines.Add(Format('%s %.4d: [cutin] function error', [ScriptPath, lines]));
+									DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [cutin] function error', [ScriptPath, lines]));
 									exit;
 								end;
 								val(sl1.Strings[1], i, j);
 								if (j <> 0) or (i < 0) or (i > 255) then begin
-									DebugOut.Lines.Add(Format('%s %.4d: [cutin] range error (2)', [ScriptPath, lines]));
+									DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [cutin] range error (2)', [ScriptPath, lines]));
 									exit;
 								end;
 								SetLength(tn.Script, k + 1);
@@ -4592,7 +5322,7 @@ begin
 								Inc(k);
 							end else if str = 'store' then begin //------- 7 store
 								if sl1.Count <> 0 then begin
-									DebugOut.Lines.Add(Format('%s %.4d: [store] function error', [ScriptPath, lines]));
+									DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [store] function error', [ScriptPath, lines]));
 									exit;
 								end;
 								SetLength(tn.Script, k + 1);
@@ -4600,17 +5330,17 @@ begin
 								Inc(k);
 							end else if str = 'warp' then begin //------- 8 warp
 								if sl1.Count <> 3 then begin
-									DebugOut.Lines.Add(Format('%s %.4d: [warp] function error', [ScriptPath, lines]));
+									DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [warp] function error', [ScriptPath, lines]));
 									exit;
 								end;
 								val(sl1.Strings[1], i, j);
 								if (j <> 0) or (i < 0) or (i > 511) then begin
-									DebugOut.Lines.Add(Format('%s %.4d: [warp] range error (2)', [ScriptPath, lines]));
+									DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [warp] range error (2)', [ScriptPath, lines]));
 									exit;
 								end;
 								val(sl1.Strings[2], i, j);
 								if (j <> 0) or (i < 0) or (i > 511) then begin
-									DebugOut.Lines.Add(Format('%s %.4d: [warp] range error (3)', [ScriptPath, lines]));
+									DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [warp] range error (3)', [ScriptPath, lines]));
 									exit;
 								end;
 								SetLength(tn.Script, k + 1);
@@ -4623,17 +5353,17 @@ begin
 								Inc(k);
 							end else if str = 'save' then begin //------- 9 save
 								if sl1.Count <> 3 then begin
-									DebugOut.Lines.Add(Format('%s %.4d: [save] function error', [ScriptPath, lines]));
+									DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [save] function error', [ScriptPath, lines]));
 									exit;
 								end;
 								val(sl1.Strings[1], i, j);
 								if (j <> 0) or (i < 0) or (i > 511) then begin
-									DebugOut.Lines.Add(Format('%s %.4d: [save] range error (2)', [ScriptPath, lines]));
+									DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [save] range error (2)', [ScriptPath, lines]));
 									exit;
 								end;
 								val(sl1.Strings[2], i, j);
 								if (j <> 0) or (i < 0) or (i > 511) then begin
-									DebugOut.Lines.Add(Format('%s %.4d: [save] range error (3)', [ScriptPath, lines]));
+									DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [save] range error (3)', [ScriptPath, lines]));
 									exit;
 								end;
 								SetLength(tn.Script, k + 1);
@@ -4646,17 +5376,17 @@ begin
 								Inc(k);
 							end else if str = 'heal' then begin //------- 10 heal
 								if sl1.Count <> 2 then begin
-									DebugOut.Lines.Add(Format('%s %.4d: [heal] function error', [ScriptPath, lines]));
+									DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [heal] function error', [ScriptPath, lines]));
 									exit;
 								end;
 								val(sl1.Strings[0], i, j);
 								if (j <> 0) or (i < 0) or (i > 30000) then begin
-									DebugOut.Lines.Add(Format('%s %.4d: [heal] range error (1)', [ScriptPath, lines]));
+									DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [heal] range error (1)', [ScriptPath, lines]));
 									exit;
 								end;
 								val(sl1.Strings[1], i, j);
 								if (j <> 0) or (i < 0) or (i > 30000) then begin
-									DebugOut.Lines.Add(Format('%s %.4d: [heal] range error (2)', [ScriptPath, lines]));
+									DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [heal] range error (2)', [ScriptPath, lines]));
 									exit;
 								end;
 								SetLength(tn.Script, k + 1);
@@ -4680,27 +5410,27 @@ begin
 								sl1.DelimitedText := sl.Strings[0];
 								if sl1.Count = 3 then sl1.Add('0');
 								if sl1.Count <> 4 then begin
-									DebugOut.Lines.Add(Format('%s %.4d: [set] function error', [ScriptPath, lines]));
+									DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [set] function error', [ScriptPath, lines]));
 									exit;
 								end;
 								val(sl1.Strings[1], i, j);
 								if (j <> 0) or (i < 0) or (i > 4) then begin
-									DebugOut.Lines.Add(Format('%s %.4d: [set] range error (2)', [ScriptPath, lines]));
+									DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [set] range error (2)', [ScriptPath, lines]));
 									exit;
 								end;
 								val(sl1.Strings[2], i, j);
 								if j = 0 then begin
 									if (i < -999999999) or (i > 999999999) then begin
-										DebugOut.Lines.Add(Format('%s %.4d: [set] range error (3)', [ScriptPath, lines]));
+										DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [set] range error (3)', [ScriptPath, lines]));
 										exit;
 									end else if (StrToInt(sl1.Strings[1]) = 3) and (i = 0) then begin
-										DebugOut.Lines.Add(Format('%s %.4d: [set] div 0 error (3)', [ScriptPath, lines]));
+										DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [set] div 0 error (3)', [ScriptPath, lines]));
 										exit;
 									end;
 								end;
 								val(sl1.Strings[3], i, j);
 								if (j <> 0) or (i < -999999999) or (i > 999999999) then begin
-									DebugOut.Lines.Add(Format('%s %.4d: [set] range error (4)', [ScriptPath, lines]));
+									DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [set] range error (4)', [ScriptPath, lines]));
 									exit;
 								end;
 								SetLength(tn.Script, k + 1);
@@ -4714,20 +5444,20 @@ begin
 								Inc(k);
 							end else if str = 'additem' then begin //------- 12 additem
 								if sl1.Count <> 2 then begin
-									DebugOut.Lines.Add(Format('%s %.4d: [additem] function error', [ScriptPath, lines]));
+									DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [additem] function error', [ScriptPath, lines]));
 									exit;
 								end;
 								val(sl1.Strings[0], i, j);
 								if j = 0 then begin
 									if (i < 0) or (i > 19999) then begin
-										DebugOut.Lines.Add(Format('%s %.4d: [additem] range error (1)', [ScriptPath, lines]));
+										DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [additem] range error (1)', [ScriptPath, lines]));
 										exit;
 									end;
 								end;
 								val(sl1.Strings[1], i, j);
 								if j = 0 then begin
 									if (i < 0) or (i > 30000) then begin
-										DebugOut.Lines.Add(Format('%s %.4d: [additem] range error (2)', [ScriptPath, lines]));
+										DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [additem] range error (2)', [ScriptPath, lines]));
 										exit;
 									end;
 								end;
@@ -4739,20 +5469,20 @@ begin
 								Inc(k);
 							end else if str = 'delitem' then begin //------- 13 delitem
 								if sl1.Count <> 2 then begin
-									DebugOut.Lines.Add(Format('%s %.4d: [delitem] function error', [ScriptPath, lines]));
+									DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [delitem] function error', [ScriptPath, lines]));
 									exit;
 								end;
 								val(sl1.Strings[0], i, j);
 								if j = 0 then begin
 									if (i < 0) or (i > 19999) then begin
-										DebugOut.Lines.Add(Format('%s %.4d: [delitem] range error (1)', [ScriptPath, lines]));
+										DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [delitem] range error (1)', [ScriptPath, lines]));
 										exit;
 									end;
 								end;
 								val(sl1.Strings[1], i, j);
 								if j = 0 then begin
 									if (i < 0) or (i > 30000) then begin
-										DebugOut.Lines.Add(Format('%s %.4d: [delitem] range error (2)', [ScriptPath, lines]));
+										DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [delitem] range error (2)', [ScriptPath, lines]));
 										exit;
 									end;
 								end;
@@ -4764,20 +5494,20 @@ begin
 								Inc(k);
 							end else if str = 'checkitem' then begin //------- 14 checkitem
 								if sl1.Count <> 4 then begin
-									DebugOut.Lines.Add(Format('%s %.4d: [checkitem] function error', [ScriptPath, lines]));
+									DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [checkitem] function error', [ScriptPath, lines]));
 									exit;
 								end;
 								val(sl1.Strings[0], i, j);
 								if j = 0 then begin
 									if (i < 0) or (i > 19999) then begin
-										DebugOut.Lines.Add(Format('%s %.4d: [checkitem] range error (1)', [ScriptPath, lines]));
+										DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [checkitem] range error (1)', [ScriptPath, lines]));
 										exit;
 									end;
 								end;
 								val(sl1.Strings[1], i, j);
 								if j = 0 then begin
 									if (i < 0) or (i > 30000) then begin
-										DebugOut.Lines.Add(Format('%s %.4d: [checkitem] range error (2)', [ScriptPath, lines]));
+										DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [checkitem] range error (2)', [ScriptPath, lines]));
 										exit;
 									end;
 								end;
@@ -4806,13 +5536,13 @@ begin
 								sl.Strings[0] := StringReplace(sl.Strings[0], ',<,,>,', ',<>,', []);
 								sl1.DelimitedText := sl.Strings[0];
 								if sl1.Count <> 5 then begin
-									DebugOut.Lines.Add(Format('%s %.4d: [check] function error', [ScriptPath, lines]));
+									DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [check] function error', [ScriptPath, lines]));
 									exit;
 								end;
 								val(sl1.Strings[2], i, j);
 								if j = 0 then begin
 									if (i < 0) or (i > 999999999) then begin
-										DebugOut.Lines.Add(Format('%s %.4d: [check] range error (1)', [ScriptPath, lines]));
+										DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [check] range error (1)', [ScriptPath, lines]));
 										exit;
 									end;
 								end;
@@ -4833,7 +5563,7 @@ begin
 								else if str = '>'	then j := 4
 								else if str = '<'	then j := 5;
 								if j = -1 then begin
-									DebugOut.Lines.Add(Format('%s %.4d: [check] syntax error (2)', [ScriptPath, lines]));
+									DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [check] syntax error (2)', [ScriptPath, lines]));
 									exit;
 								end;
 								tn.Script[k].Data3[2] := j;
@@ -4843,20 +5573,20 @@ begin
 								Inc(k);
 							end else if str = 'checkadditem' then begin //------- 16 checkadditem
 								if sl1.Count <> 4 then begin
-									DebugOut.Lines.Add(Format('%s %.4d: [checkadditem] function error', [ScriptPath, lines]));
+									DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [checkadditem] function error', [ScriptPath, lines]));
 									exit;
 								end;
 								val(sl1.Strings[0], i, j);
 								if j = 0 then begin
 									if (i < 0) or (i > 19999) then begin
-										DebugOut.Lines.Add(Format('%s %.4d: [checkadditem] range error (1)', [ScriptPath, lines]));
+										DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [checkadditem] range error (1)', [ScriptPath, lines]));
 										exit;
 									end;
 								end;
 								val(sl1.Strings[1], i, j);
 								if j = 0 then begin
 									if (i < 0) or (i > 30000) then begin
-										DebugOut.Lines.Add(Format('%s %.4d: [checkadditem] range error (2)', [ScriptPath, lines]));
+										DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [checkadditem] range error (2)', [ScriptPath, lines]));
 										exit;
 									end;
 								end;
@@ -4873,12 +5603,12 @@ begin
 								Inc(k);
 							end else if str = 'jobchange' then begin //------- 17 jobchange
 								if sl1.Count <> 1 then begin
-									DebugOut.Lines.Add(Format('%s %.4d: [jobchange] function error', [ScriptPath, lines]));
+									DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [jobchange] function error', [ScriptPath, lines]));
 									exit;
 								end;
 								val(sl1.Strings[0], i, j);
 								if (j <> 0) or (i < 0) or (i > 44) then begin
-									DebugOut.Lines.Add(Format('%s %.4d: [jobchange] range error (1)', [ScriptPath, lines]));
+									DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [jobchange] range error (1)', [ScriptPath, lines]));
 									exit;
 								end;
 								SetLength(tn.Script, k + 1);
@@ -4889,27 +5619,27 @@ begin
 
 							end else if str = 'viewpoint' then begin //------- 18 viewpoint
 								if sl1.Count <> 5 then begin
-									DebugOut.Lines.Add(Format('%s %.4d: [viewpoint] function error', [ScriptPath, lines]));
+									DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [viewpoint] function error', [ScriptPath, lines]));
 									exit;
 								end;
 								val(sl1.Strings[0], i, j);
 								if (j <> 0) or (i < 1) or (i > 2) then begin
-									DebugOut.Lines.Add(Format('%s %.4d: [viewpoint] range error (1)', [ScriptPath, lines]));
+									DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [viewpoint] range error (1)', [ScriptPath, lines]));
 									exit;
 								end;
 								val(sl1.Strings[1], i, j);
 								if (j <> 0) or (i < 0) or (i > 511) then begin
-									DebugOut.Lines.Add(Format('%s %.4d: [viewpoint] range error (2)', [ScriptPath, lines]));
+									DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [viewpoint] range error (2)', [ScriptPath, lines]));
 									exit;
 								end;
 								val(sl1.Strings[2], i, j);
 								if (j <> 0) or (i < 0) or (i > 511) then begin
-									DebugOut.Lines.Add(Format('%s %.4d: [viewpoint] range error (3)', [ScriptPath, lines]));
+									DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [viewpoint] range error (3)', [ScriptPath, lines]));
 									exit;
 								end;
 								val(sl1.Strings[3], i, j);
 								if (j <> 0) or (i < 0) or (i > 255) then begin
-									DebugOut.Lines.Add(Format('%s %.4d: [viewpoint] range error (4)', [ScriptPath, lines]));
+									DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [viewpoint] range error (4)', [ScriptPath, lines]));
 									exit;
 								end;
 								sl1.Strings[4] := StringReplace(sl1.Strings[4], '0x', '', []);
@@ -4925,7 +5655,7 @@ begin
 								Inc(k);
 							end else if str = 'input' then begin //------- 19 input
 								if sl1.Count <> 1 then begin
-									DebugOut.Lines.Add(Format('%s %.4d: [input] function error', [ScriptPath, lines]));
+									DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [input] function error', [ScriptPath, lines]));
 									exit;
 								end;
 								SetLength(tn.Script, k + 1);
@@ -4935,19 +5665,19 @@ begin
 								Inc(k);
 							end else if str = 'random' then begin //------- 20 random
 								if sl1.Count <> 2 then begin
-									DebugOut.Lines.Add(Format('%s %.4d: [random] function error', [ScriptPath, lines]));
+									DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [random] function error', [ScriptPath, lines]));
 									exit;
 								end;
 								val(sl1.Strings[0], i, j);
 								if j = 0 then begin
 									if (i < 0) or (i > 999999999) then begin
-										DebugOut.Lines.Add(Format('%s %.4d: [random] range error (1)', [ScriptPath, lines]));
+										DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [random] range error (1)', [ScriptPath, lines]));
 										exit;
 									end;
 								end;
 								val(sl1.Strings[1], i, j);
 								if (j <> 0) or (i < 0) or (i > 999999999) then begin
-									DebugOut.Lines.Add(Format('%s %.4d: [random] range error (2)', [ScriptPath, lines]));
+									DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [random] range error (2)', [ScriptPath, lines]));
 									exit;
 								end;
 								SetLength(tn.Script, k + 1);
@@ -4959,17 +5689,17 @@ begin
 								Inc(k);
 							end else if str = 'option' then begin //------- 21 option
 								if sl1.Count <> 2 then begin
-									DebugOut.Lines.Add(Format('%s %.4d: [option] function error', [ScriptPath, lines]));
+									DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [option] function error', [ScriptPath, lines]));
 									exit;
 								end;
 								val(sl1.Strings[0], i, j);
 								if (j <> 0) or (i < 0) or (i > 2) then begin
-									DebugOut.Lines.Add(Format('%s %.4d: [option] range error (1)', [ScriptPath, lines]));
+									DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [option] range error (1)', [ScriptPath, lines]));
 									exit;
 								end;
 								val(sl1.Strings[1], i, j);
 								if (j <> 0) or (i < 0) or (i > 1) then begin
-									DebugOut.Lines.Add(Format('%s %.4d: [option] range error (2)', [ScriptPath, lines]));
+									DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [option] range error (2)', [ScriptPath, lines]));
 									exit;
 								end;
 								SetLength(tn.Script, k + 1);
@@ -4980,13 +5710,13 @@ begin
 								Inc(k);
 							end else if str = 'speed' then begin //------- 22 speed
 								if sl1.Count <> 1 then begin
-									DebugOut.Lines.Add(Format('%s %.4d: [speed] function error', [ScriptPath, lines]));
+									DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [speed] function error', [ScriptPath, lines]));
 									exit;
 								end;
 								val(sl1.Strings[0], i, j);
 								if j = 0 then begin
 									if (i < 25) or (i > 1000) then begin
-										DebugOut.Lines.Add(Format('%s %.4d: [speed] range error (1)', [ScriptPath, lines]));
+										DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [speed] range error (1)', [ScriptPath, lines]));
 										exit;
 									end;
 								end;
@@ -4997,7 +5727,7 @@ begin
 								Inc(k);
 							end else if str = 'die' then begin //------- 23 die
 								if sl1.Count <> 0 then begin
-									DebugOut.Lines.Add(Format('%s %.4d: [die] function error', [ScriptPath, lines]));
+									DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [die] function error', [ScriptPath, lines]));
 									exit;
 								end;
 								SetLength(tn.Script, k + 1);
@@ -5005,12 +5735,12 @@ begin
 								Inc(k);
 							end else if str = 'ccolor' then begin //------- 24 ccolor
 								if sl1.Count <> 1 then begin
-									DebugOut.Lines.Add(Format('%s %.4d: [ccolor] function error', [ScriptPath, lines]));
+									DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [ccolor] function error', [ScriptPath, lines]));
 									exit;
 								end;
 								{val(sl1.Strings[0], i, j);
 								if (j <> 0) or (i > 5) then begin
-									DebugOut.Lines.Add(Format('%s %.4d: [ccolor] range error (1)', [ScriptPath, lines]));
+									DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [ccolor] range error (1)', [ScriptPath, lines]));
 									exit;
 								end;}
 								SetLength(tn.Script, k + 1);
@@ -5020,14 +5750,14 @@ begin
 								Inc(k);
 							end else if str = 'refine' then begin //------- 25 refine	 refine[itemID][fail][+val]
 								if sl1.Count <> 3 then begin
-									DebugOut.Lines.Add(Format('%s %.4d: [refine] function error', [ScriptPath, lines]));
+									DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [refine] function error', [ScriptPath, lines]));
 									exit;
 								end;
 								//val(sl1.Strings[0], i, j);
 								//val(sl1.Strings[1], i, j);
 								val(sl1.Strings[2], i, j);
 								if (j <> 0) or (i > 10) then begin
-									DebugOut.Lines.Add(Format('%s %.4d: [refine] range error (1)', [ScriptPath, lines]));
+									DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [refine] range error (1)', [ScriptPath, lines]));
 									exit;
 								end;
 								SetLength(tn.Script, k + 1);
@@ -5039,13 +5769,13 @@ begin
 								Inc(k);
 							end else if str = 'getitemamount' then begin //------- 26 getitemamount
 								if sl1.Count <> 2 then begin
-									DebugOut.Lines.Add(Format('%s %.4d: [getitemamount] function error', [ScriptPath, lines]));
+									DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [getitemamount] function error', [ScriptPath, lines]));
 									exit;
 								end;
 								val(sl1.Strings[0], i, j);
 								if j = 0 then begin
 									if (i < 0) or (i > 19999) then begin
-										DebugOut.Lines.Add(Format('%s %.4d: [getitemamount] range error (1)', [ScriptPath, lines]));
+										DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [getitemamount] range error (1)', [ScriptPath, lines]));
 										exit;
 									end;
 								end;
@@ -5058,7 +5788,7 @@ begin
 {追加:スクリプト144}
 							end else if str = 'getskilllevel' then begin //--------27 getskilllevel // S144 addstart
 								if sl1.Count <> 2 then begin
-									DebugOut.Lines.Add(Format('%s %.4d: [getskilllevel] function error', [ScriptPath, lines]));
+									DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [getskilllevel] function error', [ScriptPath, lines]));
 									exit;
 								end;
 
@@ -5070,13 +5800,13 @@ begin
 								Inc(k);
 							end else if str = 'setskilllevel' then begin //--------28 setskilllevel
 								if sl1.Count <> 2 then begin
-									DebugOut.Lines.Add(Format('%s %.4d: [setskilllevel] function error', [ScriptPath, lines]));
+									DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [setskilllevel] function error', [ScriptPath, lines]));
 									exit;
 								end;
 								val(sl1.Strings[1], i, j);
 								if j = 0 then begin
 									if (i < 0) or (i > 10) then begin
-										DebugOut.Lines.Add(Format('%s %.4d: [setskilllevel] range error(2)', [ScriptPath, lines]));
+										DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [setskilllevel] range error(2)', [ScriptPath, lines]));
 										exit;
 									end;
 								end;
@@ -5090,27 +5820,27 @@ begin
 {精錬NPC機能追加}
 							end else if str = 'refinery' then begin //--------29 refinery
 								if sl1.Count <> 3 then begin
-									DebugOut.Lines.Add(Format('%s %.4d: [refinery] function error', [ScriptPath, lines]));
+									DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [refinery] function error', [ScriptPath, lines]));
 									exit;
 								end;
 								val(sl1.Strings[0], i, j);
 								if j = 0 then begin
 									if (i < 0) or (i > 10) then begin
-										DebugOut.Lines.Add(Format('%s %.4d: [refinery] range error (1)', [ScriptPath, lines]));
+										DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [refinery] range error (1)', [ScriptPath, lines]));
 										exit;
 									end;
 								end;
 								val(sl1.Strings[1], i, j);
 								if j = 0 then begin
 									if (i < 0) or (i > 2) then begin
-										DebugOut.Lines.Add(Format('%s %.4d: [refinery] range error (2)', [ScriptPath, lines]));
+										DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [refinery] range error (2)', [ScriptPath, lines]));
 										exit;
 									end;
 								end;
 								val(sl1.Strings[2], i, j);
 								if j = 0 then begin
 									if (i < 0) or (i > 10) then begin
-										DebugOut.Lines.Add(Format('%s %.4d: [refinery] range error (3)', [ScriptPath, lines]));
+										DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [refinery] range error (3)', [ScriptPath, lines]));
 										exit;
 									end;
 								end;
@@ -5123,7 +5853,7 @@ begin
 								Inc(k);
 							end else if str = 'equipmenu' then begin //--------30 equipmenu
 								if sl1.Count <> 3 then begin
-									DebugOut.Lines.Add(Format('%s %.4d: [equipmenu] function error', [ScriptPath, lines]));
+									DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [equipmenu] function error', [ScriptPath, lines]));
 									exit;
 								end;
 								SetLength(tn.Script, k + 1);
@@ -5136,13 +5866,13 @@ begin
 								Inc(k);
 							end else if str = 'lockitem' then begin //--------31 lockitem
 								if sl1.Count <> 1 then begin
-									DebugOut.Lines.Add(Format('%s %.4d: [lockitem] function error', [ScriptPath, lines]));
+									DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [lockitem] function error', [ScriptPath, lines]));
 									exit;
 								end;
 								val(sl1.Strings[0], i, j);
 								if j = 0 then begin
 									if (i < 0) or (i > 1) then begin
-										DebugOut.Lines.Add(Format('%s %.4d: [lockitem] range error', [ScriptPath, lines]));
+										DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [lockitem] range error', [ScriptPath, lines]));
 										exit;
 									end;
 								end;
@@ -5155,13 +5885,13 @@ begin
 {髪色変更追加}
 							end else if str = 'hcolor' then begin //------- 32 hcolor
 								if sl1.Count <> 1 then begin
-									DebugOut.Lines.Add(Format('%s %.4d: [hcolor] function error', [ScriptPath, lines]));
+									DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [hcolor] function error', [ScriptPath, lines]));
 									exit;
 								end;
 								val(sl1.Strings[0], i, j);
 								if j = 0 then begin
 									if (i < 0) or (i > 8) then begin
-										DebugOut.Lines.Add(Format('%s %.4d: [hcolor] range error', [ScriptPath, lines]));
+										DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [hcolor] range error', [ScriptPath, lines]));
 										exit;
 									end;
 								end;
@@ -5175,14 +5905,14 @@ begin
 							end else if str = 'callmob' then begin //------- 33 callmob
 								if (sl1.Count = 6) then sl1.Add('');
 								if (sl1.Count <> 7) then begin
-									DebugOut.Lines.Add(Format('%s %.4d: [callmob] function error', [ScriptPath, lines]));
+									DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [callmob] function error', [ScriptPath, lines]));
 									exit;
 								end;
 								i := 0;
 								if (tn.Map <> ChangeFileExt(sl1.Strings[0], '')) then i := 1;
 								if (MobDB.IndexOf(StrToInt(sl1.Strings[4])) = -1) then i := 1;
 								if i <> 0 then begin
-									DebugOut.Lines.Add(Format('%s %.4d: [callmob] range error', [ScriptPath, lines]));
+									DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [callmob] range error', [ScriptPath, lines]));
 									exit;
 								end;
 								SetLength(tn.Script, k + 1);
@@ -5201,7 +5931,7 @@ begin
 							end else if str = 'broadcast' then begin //------- 34 broadcast
 								if (sl1.Count = 1) then sl1.Add('0');
 								if (sl1.Count <> 2) then begin
-									DebugOut.Lines.Add(Format('%s %.4d: [broadcast] function error', [ScriptPath, lines]));
+									DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [broadcast] function error', [ScriptPath, lines]));
 									exit;
 								end;
 								SetLength(tn.Script, k + 1);
@@ -5215,13 +5945,13 @@ begin
 								Inc(k);
 							end else if str = 'npctimer' then begin //------- 35 npctimer
 								if (sl1.Count <> 1) then begin
-									DebugOut.Lines.Add(Format('%s %.4d: [npctimer] function error', [ScriptPath, lines]));
+									DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [npctimer] function error', [ScriptPath, lines]));
 									exit;
 								end;
 								val(sl1.Strings[0], i, j);
 								if j = 0 then begin
 									if (i < 0) or (i > 8) then begin
-										DebugOut.Lines.Add(Format('%s %.4d: [npctimer] range error', [ScriptPath, lines]));
+										DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [npctimer] range error', [ScriptPath, lines]));
 										exit;
 									end;
 								end;
@@ -5232,12 +5962,12 @@ begin
 								Inc(k);
 							end else if str = 'addnpctimer' then begin //------- 36 addnpctimer
 								if sl1.Count <> 2 then begin
-									DebugOut.Lines.Add(Format('%s %.4d: [addnpctimer] function error', [ScriptPath, lines]));
+									DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [addnpctimer] function error', [ScriptPath, lines]));
 									exit;
 								end;
 								val(sl1.Strings[1], i, j);
 								if (j <> 0) or (i < -999999999) or (i > 999999999) then begin
-									DebugOut.Lines.Add(Format('%s %.4d: [addnpctimer] range error', [ScriptPath, lines]));
+									DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [addnpctimer] range error', [ScriptPath, lines]));
 									exit;
 								end;
 								SetLength(tn.Script, k + 1);
@@ -5249,7 +5979,7 @@ begin
 								Inc(k);
 							end else if str = 'return' then begin //------- 37 return
 								if sl1.Count <> 0 then begin
-									DebugOut.Lines.Add(Format('%s %.4d: [return] function error', [ScriptPath, lines]));
+									DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [return] function error', [ScriptPath, lines]));
 									exit;
 								end;
 								SetLength(tn.Script, k + 1);
@@ -5258,22 +5988,22 @@ begin
 							end else if str = 'warpallpc' then begin //------- 38 warpallpc
 								if (sl1.Count = 3) then sl1.Add('0');
 								if (sl1.Count <> 4) then begin
-									DebugOut.Lines.Add(Format('%s %.4d: [warpallpc] function error', [ScriptPath, lines]));
+									DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [warpallpc] function error', [ScriptPath, lines]));
 									exit;
 								end;
 								val(sl1.Strings[1], i, j);
 								if (j <> 0) or (i < 0) or (i > 511) then begin
-									DebugOut.Lines.Add(Format('%s %.4d: [warpallpc] range error (2)', [ScriptPath, lines]));
+									DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [warpallpc] range error (2)', [ScriptPath, lines]));
 									exit;
 								end;
 								val(sl1.Strings[2], i, j);
 								if (j <> 0) or (i < 0) or (i > 511) then begin
-									DebugOut.Lines.Add(Format('%s %.4d: [warpallpc] range error (3)', [ScriptPath, lines]));
+									DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [warpallpc] range error (3)', [ScriptPath, lines]));
 									exit;
 								end;
 								val(sl1.Strings[3], i, j);
 								if (j <> 0) or (i < 0) or (i > 2) then begin
-									DebugOut.Lines.Add(Format('%s %.4d: [warpallpc] range error (4)', [ScriptPath, lines]));
+									DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [warpallpc] range error (4)', [ScriptPath, lines]));
 									exit;
 								end;
 								SetLength(tn.Script, k + 1);
@@ -5287,12 +6017,12 @@ begin
 								Inc(k);
 							end else if str = 'waitingroom' then begin //------- 39 waitingroom
 								if (sl1.Count <> 2) then begin
-									DebugOut.Lines.Add(Format('%s %.4d: [waitingroom] function error', [ScriptPath, lines]));
+									DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [waitingroom] function error', [ScriptPath, lines]));
 									exit;
 								end;
 								val(sl1.Strings[1], i, j);
 								if (j <> 0) or (i < 2) or (i > 20) then begin
-									DebugOut.Lines.Add(Format('%s %.4d: [waitingroom] range error (2)', [ScriptPath, lines]));
+									DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [waitingroom] range error (2)', [ScriptPath, lines]));
 									exit;
 								end;
 								SetLength(tn.Script, k + 1);
@@ -5305,12 +6035,12 @@ begin
 								Inc(k);
 							end else if str = 'enablenpc' then begin //------- 40 enablenpc
 								if (sl1.Count <> 3) then begin
-									DebugOut.Lines.Add(Format('%s %.4d: [enablenpc] function error', [ScriptPath, lines]));
+									DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [enablenpc] function error', [ScriptPath, lines]));
 									exit;
 								end;
 								val(sl1.Strings[2], i, j);
 								if (j <> 0) or (i < 0) or (i > 1) then begin
-									DebugOut.Lines.Add(Format('%s %.4d: [enablenpc] range error (2)', [ScriptPath, lines]));
+									DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [enablenpc] range error (2)', [ScriptPath, lines]));
 									exit;
 								end;
 								SetLength(tn.Script, k + 1);
@@ -5323,7 +6053,7 @@ begin
 								Inc(k);
 							end else if str = 'resetmymob' then begin //------- 41 resetmymob
 								if (sl1.Count <> 1) then begin
-									DebugOut.Lines.Add(Format('%s %.4d: [resetmymob] function error', [ScriptPath, lines]));
+									DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [resetmymob] function error', [ScriptPath, lines]));
 									exit;
 								end;
 								SetLength(tn.Script, k + 1);
@@ -5333,7 +6063,7 @@ begin
 								Inc(k);
 							end else if str = 'getmapusers' then begin //------- 42 getmapusers
 								if (sl1.Count <> 2) then begin
-									DebugOut.Lines.Add(Format('%s %.4d: [getmapusers] function error', [ScriptPath, lines]));
+									DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [getmapusers] function error', [ScriptPath, lines]));
 									exit;
 								end;
 								SetLength(tn.Script, k + 1);
@@ -5348,16 +6078,16 @@ begin
 								sl.Strings[0] := StringReplace(sl.Strings[0], '=', ',0,', []);
 								sl1.DelimitedText := sl.Strings[0];
 								if (sl1.Count <> 3) then begin
-									DebugOut.Lines.Add(Format('%s %.4d: [setstr] function error', [ScriptPath, lines]));
+									DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [setstr] function error', [ScriptPath, lines]));
 									exit;
 								end;
 								if (Copy(sl1.Strings[0], 1, 1) <> '$') and (Copy(sl1.Strings[0], 1, 2) <> '\$') then begin
-									DebugOut.Lines.Add(Format('%s %.4d: [setstr] range error (1)', [ScriptPath, lines]));
+									DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [setstr] range error (1)', [ScriptPath, lines]));
 									exit;
 								end;
 								val(sl1.Strings[1], i, j);
 								if (j <> 0) or (i < 0) or (i > 1) then begin
-									DebugOut.Lines.Add(Format('%s %.4d: [setstr] range error (2)', [ScriptPath, lines]));
+									DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [setstr] range error (2)', [ScriptPath, lines]));
 									exit;
 								end;
 								SetLength(tn.Script, k + 1);
@@ -5376,7 +6106,7 @@ begin
 								sl.Strings[0] := StringReplace(sl.Strings[0], '<>', ',<>,', []);
 								sl1.DelimitedText := sl.Strings[0];
 								if sl1.Count <> 5 then begin
-									DebugOut.Lines.Add(Format('%s %.4d: [checkstr] function error', [ScriptPath, lines]));
+									DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [checkstr] function error', [ScriptPath, lines]));
 									exit;
 								end;
 								SetLength(tn.Script, k + 1);
@@ -5392,7 +6122,7 @@ begin
 								if str = '='	then j := 0
 								else if str = '<>' then j := 1;
 								if j = -1 then begin
-									DebugOut.Lines.Add(Format('%s %.4d: [checkstr] syntax error (2)', [ScriptPath, lines]));
+									DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [checkstr] syntax error (2)', [ScriptPath, lines]));
 									exit;
 								end;
 								tn.Script[k].Data3[2] := j;
@@ -5403,7 +6133,7 @@ begin
 {NPCイベント追加ココまで}
               end else if str = 'resetstat' then begin //------- 45 resetstat
 								if sl1.Count <> 0 then begin
-									DebugOut.Lines.Add(Format('%s %.4d: [resetstat] function error', [ScriptPath, lines]));
+									DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [resetstat] function error', [ScriptPath, lines]));
 									exit;
 								end;
 								SetLength(tn.Script, k + 1);
@@ -5411,15 +6141,161 @@ begin
 								Inc(k);
               end else if str = 'resetskill' then begin //------- 46 resetskill
 								if sl1.Count <> 0 then begin
-									DebugOut.Lines.Add(Format('%s %.4d: [resetskill] function error', [ScriptPath, lines]));
+									DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [resetskill] function error', [ScriptPath, lines]));
 									exit;
 								end;
 								SetLength(tn.Script, k + 1);
 								tn.Script[k].ID := 46;
 								Inc(k);
+              end else if str = 'hstyle' then begin //------- 47 hstyle
+								if sl1.Count <> 1 then begin
+									DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [hstyle] function error', [ScriptPath, lines]));
+									exit;
+								end;
+								val(sl1.Strings[0], i, j);
+								if j = 0 then begin
+									if (i < 0) or (i > 19) then begin
+										DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [hstyle] range error', [ScriptPath, lines]));
+										exit;
+									end;
+								end;
+								SetLength(tn.Script, k + 1);
+								tn.Script[k].ID := 47;
+								SetLength(tn.Script[k].Data1, 1);
+								tn.Script[k].Data1[0] := LowerCase(sl1.Strings[0]);
+								Inc(k);
+              end else if str = 'guildreg' then begin //------- 48 guildreg
+								if sl1.Count <> 1 then begin
+									DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [guildreg] function error', [ScriptPath, lines]));
+									exit;
+								end;
+                //j := CastleList.IndexOf(sl1.Strings[0]);
+								//if j = - 1 then begin
+                  //DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [guildreg] map error', [ScriptPath, lines]));
+                  //exit;
+								//end;
+								SetLength(tn.Script, k + 1);
+								tn.Script[k].ID := 48;
+								SetLength(tn.Script[k].Data1, 1);
+								tn.Script[k].Data1[0] := LowerCase(sl1.Strings[0]);
+								Inc(k);
+              end else if str = 'getgskilllevel' then begin //--------49 getgskilllevel
+								if sl1.Count <> 2 then begin
+									DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [getgskilllevel] function error', [ScriptPath, lines]));
+									exit;
+								end;
+
+								SetLength(tn.Script, k + 1);
+								tn.Script[k].ID := 49;
+								SetLength(tn.Script[k].Data1, 2);
+								tn.Script[k].Data1[0] := LowerCase(sl1.Strings[0]);
+								tn.Script[k].Data1[1] := LowerCase(sl1.Strings[1]);
+								Inc(k);
+              end else if str = 'getguardstatus' then begin //--------50 getguardstatus
+								if sl1.Count <> 2 then begin
+									DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [getguardstatus] function error', [ScriptPath, lines]));
+									exit;
+								end;
+
+								SetLength(tn.Script, k + 1);
+								tn.Script[k].ID := 50;
+								SetLength(tn.Script[k].Data1, 2);
+								tn.Script[k].Data1[0] := LowerCase(sl1.Strings[0]);
+								tn.Script[k].Data1[1] := LowerCase(sl1.Strings[1]);
+								Inc(k);
+              end else if str = 'setguildkafra' then begin //------- 51 setguildkafra
+								if sl1.Count <> 1 then begin
+									DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [setguildkafra] function error', [ScriptPath, lines]));
+									exit;
+								end;
+								val(sl1.Strings[0], i, j);
+								if j = 0 then begin
+									if (i < 0) or (i > 1) then begin
+										DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [setguildkafra] range error', [ScriptPath, lines]));
+										exit;
+									end;
+								end;
+								SetLength(tn.Script, k + 1);
+								tn.Script[k].ID := 51;
+								SetLength(tn.Script[k].Data1, 1);
+								tn.Script[k].Data1[0] := LowerCase(sl1.Strings[0]);
+								Inc(k);
+              end else if str = 'setguardstatus' then begin //--------52 setguardstatus
+								if sl1.Count <> 2 then begin
+									DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [setguardstatus] function error', [ScriptPath, lines]));
+									exit;
+								end;
+                val(sl1.Strings[0], i, j);
+								if j = 0 then begin
+									if (i < 1) or (i > 8) then begin
+										DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [setguardstatus] range error', [ScriptPath, lines]));
+										exit;
+									end;
+								end;
+                val(sl1.Strings[1], i, j);
+								if j = 0 then begin
+									if (i < 0) or (i > 1) then begin
+										DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [setguardstatus] range error', [ScriptPath, lines]));
+										exit;
+									end;
+								end;
+								SetLength(tn.Script, k + 1);
+								tn.Script[k].ID := 52;
+								SetLength(tn.Script[k].Data1, 2);
+								tn.Script[k].Data1[0] := LowerCase(sl1.Strings[0]);
+								tn.Script[k].Data1[1] := LowerCase(sl1.Strings[1]);
+								Inc(k);
+              end else if str = 'callguard' then begin //------- 53 callguard
+								if sl1.Count <> 1 then begin
+									DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [callguard] function error', [ScriptPath, lines]));
+									exit;
+								end;
+								val(sl1.Strings[0], i, j);
+								if j = 0 then begin
+									if (i < 1) or (i > 8) then begin
+										DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [callguard] range error', [ScriptPath, lines]));
+										exit;
+									end;
+								end;
+								SetLength(tn.Script, k + 1);
+								tn.Script[k].ID := 53;
+								SetLength(tn.Script[k].Data1, 1);
+								tn.Script[k].Data1[0] := LowerCase(sl1.Strings[0]);
+								Inc(k);
+              end else if str = 'callmymob' then begin //------- 54 callmymob
+								if sl1.Count <> 5 then begin
+									DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [callmymob] function error', [ScriptPath, lines]));
+									exit;
+								end;
+
+								SetLength(tn.Script, k + 1);
+								tn.Script[k].ID := 54;
+								SetLength(tn.Script[k].Data1, 5);
+								tn.Script[k].Data1[0] := LowerCase(sl1.Strings[0]);
+                tn.Script[k].Data1[1] := LowerCase(sl1.Strings[1]);
+                tn.Script[k].Data1[2] := LowerCase(sl1.Strings[2]);
+                tn.Script[k].Data1[3] := LowerCase(sl1.Strings[3]);
+                tn.Script[k].Data1[4] := LowerCase(sl1.Strings[4]);
+								Inc(k);
+              end else if str = 'resetguild' then begin //------- 55 resetguild
+								if sl1.Count <> 0 then begin
+									DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [resetguild] function error', [ScriptPath, lines]));
+									exit;
+								end;
+								SetLength(tn.Script, k + 1);
+								tn.Script[k].ID := 55;
+								Inc(k);
+              end else if str = 'guilddinvest' then begin //------- 56 guilddinvest
+								if sl1.Count <> 0 then begin
+									DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [guilddinvest] function error', [ScriptPath, lines]));
+									exit;
+								end;
+								SetLength(tn.Script, k + 1);
+								tn.Script[k].ID := 56;
+								Inc(k);
 							end else if str = 'script' then begin //------- 99 script
 								if sl1.Count <> 1 then begin
-									DebugOut.Lines.Add(Format('%s %.4d: [script] function error', [ScriptPath, lines]));
+									DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [script] function error', [ScriptPath, lines]));
 									exit;
 								end;
 								SetLength(tn.Script, k + 1);
@@ -5450,13 +6326,15 @@ begin
 									end;
 								end else if (LowerCase(Copy(str, 1, 6)) = 'oninit') then begin
 									tn.ScriptInitS := k;
+                end else if (LowerCase(Copy(str, 1, 11)) = 'onmymobdead') then begin
+									tn.ScriptInitMS := k;
 								end;
-{NPCイベント追加ココまで}
+
 								str := Copy(str, 1, Length(str) - 1);
 								sl2.Add(str + '=' + IntToStr(k));
 							end else if str = 'scriptlabel' then begin //scriptlabel
 								if sl1.Count <> 1 then begin
-									DebugOut.Lines.Add(Format('%s %.4d: [scriptlabel] function error', [ScriptPath, lines]));
+									DebugOut.Lines.Add(Format('***ERROR LOADING SCRIPT:%s Line #%.4d: [scriptlabel] function error', [ScriptPath, lines]));
 									exit;
 								end;
 								tn.ScriptLabel := LowerCase(sl1.Strings[0]);
@@ -5540,7 +6418,25 @@ begin
 							ts.Point1.Y := ts0.Point1.Y;
 							ts.Point2.X := ts0.Point2.X;
 							ts.Point2.Y := ts0.Point2.Y;
-{追加}
+
+{追加}        if (ts.JID = 1288) then begin
+              ts.isEmperium := true;
+              m := CastleList.IndexOf(ts.Map);
+              if (m <> - 1) then begin
+              tgc := CastleList.Objects[m] as TCastle;
+              ts.GID := tgc.GID;
+              end;
+              k := EmpList.IndexOf(ts.Map);
+              if (k = -1) then begin
+              te := TEmp.Create;
+		          with te do begin
+              Map := ts.Map;
+              EID := ts.ID;
+              end;
+		          EmpList.AddObject(te.Map, te);
+              end;
+              end;
+
 							ts.isLooting := False;
   						for j:= 1 to 10 do begin
 								ts.Item[j].ID := 0;
@@ -5600,7 +6496,7 @@ begin
 								end;
 {追加}					ts.Element := ts.Data.Element;
 {追加}					ts.isActive := ts.Data.isActive;
-
+                ts.EmperiumID := 0;
 								tm.Mob.AddObject(ts.ID, ts);
 								tm.Block[ts.Point.X div 8][ts.Point.Y div 8].Mob.AddObject(ts.ID, ts);
 							end else begin
@@ -5674,6 +6570,89 @@ end;
 	sl.Free;
 	sl1.Free;
 	sl2.Free;
+
+          //my last code point
+          if (CastleList.Count > 0) then begin
+          j := CastleList.IndexOf(tm.Name);
+          //EnableGuildKafra(tm.Name,'Kafra Service',0);
+          if (j <> - 1) then begin
+          tgc := CastleList.Objects[j] as TCastle;
+          EnableGuildKafra(tm.Name,'Kafra Service',tgc.GKafra);
+          j := EmpList.IndexOf(tm.Name);
+          if (j <> - 1) then te := EmpList.Objects[j] as TEmp;
+          for k := 0 to 7 do begin
+          ts := TMob.Create;
+          if (tgc.GuardStatus[k] = 1) then begin
+          case k of
+          0,1,2:
+          begin
+					ts.Data := MobDBName.Objects[MobDBName.IndexOf('SOLDIER_GUARDIAN')] as TMobDB;
+          end;
+          3,4:
+          begin
+          ts.Data := MobDBName.Objects[MobDBName.IndexOf('ARCHER_GUARDIAN')] as TMobDB;
+          end;
+          5,6,7:
+          begin
+          ts.Data := MobDBName.Objects[MobDBName.IndexOf('KNIGHT_GUARDIAN')] as TMobDB;
+          end;
+          end;
+					ts.ID := NowMobID;
+					Inc(NowMobID);
+					ts.Name := ts.Data.JName;
+					ts.JID := ts.Data.ID;
+					ts.Map := tm.Name;
+          ts.Data.isLink :=false;
+          ts.isGuardian := tgc.GID;
+
+          if (te <> nil) then begin
+          ts.EmperiumID := te.EID;
+          end else begin
+          ts.EmperiumID := 0;
+          end;
+
+          repeat
+					ts.Point.X := Random(tm.Size.X - 2);
+					ts.Point.Y := Random(tm.Size.y - 2);
+          until ((tm.gat[ts.Point.X][ts.Point.Y] and 1) <> 0);
+
+					ts.Dir := Random(8);
+					ts.HP := ts.Data.HP;
+					ts.Speed := ts.Data.Speed;
+					ts.SpawnDelay1 := $7FFFFFFF;
+					ts.SpawnDelay2 := 0;
+					ts.SpawnType := 0;
+					ts.SpawnTick := 0;
+					if ts.Data.isDontMove then
+						ts.MoveWait := $FFFFFFFF
+					else
+          ts.MoveWait := timeGetTime();
+					ts.ATarget := 0;
+					ts.ATKPer := 100;
+					ts.DEFPer := 100;
+					ts.DmgTick := 0;
+          ts.Element := ts.Data.Element;
+          ts.Name := ts.Data.JName;
+          ts.isActive := ts.Data.isActive;
+					ts.MoveWait := timeGetTime();
+					for j := 0 to 31 do begin
+						ts.EXPDist[j].CData := nil;
+						ts.EXPDist[j].Dmg := 0;
+					end;
+					if ts.Data.MEXP <> 0 then begin
+						for j := 0 to 31 do begin
+							ts.MVPDist[j].CData := nil;
+							ts.MVPDist[j].Dmg := 0;
+						end;
+						ts.MVPDist[0].Dmg := ts.Data.HP * 30 div 100; //FAに30%加算
+					end;
+          ts.isSummon := True;
+					tm.Mob.AddObject(ts.ID, ts);
+					tm.Block[ts.Point.X div 8][ts.Point.Y div 8].Mob.AddObject(ts.ID, ts);
+          end;
+          end;
+          end;
+          end;
 
 	tm.Mode := 2;
 end;
@@ -5923,11 +6902,24 @@ end;
 constructor TPlayer.Create;
 begin
 	inherited;
+  //Kafra := TItemList.Create;
+  //Kafra.MaxWeight := 4000000000;
+end;
+
+destructor TPlayer.Destroy;
+begin
+  //Kafra.Free;
+	inherited;
+end;
+
+constructor TKafra.Create;
+begin
+	inherited;
   Kafra := TItemList.Create;
   Kafra.MaxWeight := 4000000000;
 end;
 
-destructor TPlayer.Destroy;
+destructor TKafra.Destroy;
 begin
   Kafra.Free;
 	inherited;

@@ -10,7 +10,7 @@ uses
 
 //==============================================================================
 // 関数定義
-		procedure sv3PacketProcess(Socket: TCustomWinSocket);
+		procedure sv3PacketProcess(Socket: TCustomWinSocket);  //edited by The Harbinger -- darkWeiss version
 //==============================================================================
 
 
@@ -67,8 +67,11 @@ var
   ts1 :TMob;
   tss :TSlaveDB;
   ma  :TMArrowDB;
+  tid :TIDTbl;
 	ti  :TItem;
 	tk  :TSkill;
+  tkf :TKafra;
+  tbn :TBan;
 	tl  :TSkillDB;
 	td  :TItemDB;
 {アイテム製造追加}
@@ -111,6 +114,7 @@ var
 	sl  :TStringList;
 	ww  :array of array of word;
 	tmpbuf:array of byte;
+  txt:TextFile;
 begin
   j := 0;
   tcr := nil;
@@ -122,7 +126,7 @@ begin
 		//	DebugOut.Lines.Add('!');
 		tc := Socket.Data;
 		if (cmd > $200) then begin
-			DebugOut.Lines.Add('不明なパケット' + IntToStr(Socket.ReceiveLength) + 'バイトを破棄しました');
+			//DebugOut.Lines.Add('不明なパケット' + IntToStr(Socket.ReceiveLength) + 'バイトを破棄しました');
 			SetLength(tmpbuf, Socket.ReceiveLength);
 			Socket.ReceiveBuf(tmpbuf[0], Socket.ReceiveLength);
 			continue;
@@ -159,6 +163,7 @@ begin
 					tp := Player.IndexOfObject(l) as TPlayer;
 					tc := Chara.IndexOfObject(l2) as TChara;
 					//if tc.IP = Socket.RemoteAddress then begin
+
 					if (tp.LoginID1 = id1) and (tp.LoginID1 <> 0) then begin
 						tc.ver2 := tp.ver2;
 						//tp.LoginID1 := 0;
@@ -252,11 +257,12 @@ begin
 							tn := tm.Block[i][j].NPC.Objects[k] as TNPC;
 							if (abs(tc.Point.X - tn.Point.X) < 16) and (abs(tc.Point.Y - tn.Point.Y) < 16) then begin
 {NPCイベント追加}
+                //SendNData(Socket, tn, tc.ver2);
 								if (tn.Enable = true) then begin
 									SendNData(Socket, tn,tc.ver2);
 									if (tn.ScriptInitS <> -1) and (tn.ScriptInitD = false) then begin
 										//OnInitラベルを実行
-										DebugOut.Lines.Add(Format('OnInit Event(%d)', [tn.ID]));
+										//DebugOut.Lines.Add(Format('OnInit Event(%d)', [tn.ID]));
 										tc1 := TChara.Create;
 										tc1.TalkNPCID := tn.ID;
 										tc1.ScriptStep := tn.ScriptInitS;
@@ -501,7 +507,7 @@ begin
 					WFIFOS(62, tg.Notice[1], 120);
 					Socket.SendBuf(buf, 182);
 				end;
-
+          
           if (mi.Pvp = true) then begin
               for j := 0 to tm.CList.Count - 1 do begin
               tc1 := tm.CList.Objects[j] as TChara;
@@ -517,6 +523,15 @@ begin
               tc1.Socket.SendBuf(buf, 14);
               end;
           end;
+
+          if (mi.PvPG = true) then begin
+              for j := 0 to tm.CList.Count - 1 do begin
+              tc1 := tm.CList.Objects[j] as TChara;
+              WFIFOW( 0, $0199);
+							WFIFOW( 2, 1);
+							tc1.Socket.SendBuf(buf, 4);
+              end;
+          end;
 {ギルド機能追加ココまで}
 			end;
 		//--------------------------------------------------------------------------
@@ -557,7 +572,7 @@ begin
         //DebugOut.Lines.Add(IntToStr(tc.ID));
         //DebugOut.Lines.Add(IntToStr(tc.AMode));
 				if tc.AMode > 2 then continue;
-				if tc.MMode <> 0 then continue;
+				if (tc.MMode <> 0) then continue;
 
 				RFIFOB(6, b);
 				//DebugOut.Lines.Add('Inside Attack Command');
@@ -674,26 +689,33 @@ end;
 		//--------------------------------------------------------------------------
 		$008c: //しゃべる
 			begin
-					tm := tc.MData;
+        tm := tc.MData;
+        h := IDTableDB.IndexOf(tc.ID);
+
 				RFIFOW(2, w);
 				str := RFIFOS(4, w - 4);
-{Edit - Miyuki}   if (tc.ID >=100001) and (tc.ID<=100005) and(Pos(' : ', str) <> 0) and (Copy(str, Pos(' : ', str) + 3, 1) = '#') then begin
+
+{Edit - Miyuki}
+       if (h <> - 1) and (Pos(' : ', str) <> 0) and (Copy(str, Pos(' : ', str) + 3, 1) = '#') then begin
 					str := Copy(str, Pos(' : ', str) + 4, 256);
 					//#で始まるコマンド(主にでばぐ用)
-					if (Copy(str, 1, 4) = 'save') and ((DebugCMD and $0001) <> 0) then begin
+          tid := IDTableDB.Objects[h] as TIDTbl;
+
+					if (Copy(str, 1, 4) = 'save') and ((DebugCMD and $0001) <> 0) and (tid.SaveReturn = 1) then begin
 						//現在地をセーブする
 						tc.SaveMap := tc.Map;
 						tc.SavePoint.X := tc.Point.X;
 						tc.SavePoint.Y := tc.Point.Y;
-					end else if (Copy(str, 1, 6) = 'return') and ((DebugCMD and $0002) <> 0) then begin
+					end else if (Copy(str, 1, 6) = 'return') and ((DebugCMD and $0002) <> 0) and (tid.SaveReturn = 1) then begin
 						//セーブポイントまで戻る
 						SendCLeave(Socket.Data, 2);
 						tc.Map := tc.SaveMap;
 						tc.Point := tc.SavePoint;
 						MapMove(Socket, tc.Map, tc.Point);
-					end else if (Copy(str, 1, 7) = 'blevel ') and ((DebugCMD and $0008) <> 0) then begin
+
+					end else if (Copy(str, 1, 7) = 'blevel ') and ((DebugCMD and $0008) <> 0) and (tid.ChangeLevel = 1) then begin
 						Val(Copy(str, 8, 256), i, k);
-						if (k = 0) and (i >= 1) and (i <= 199) and (i <> tc.BaseLV) then begin
+						if (k = 0) and (i >= 1) and (i <= 999) and (i <> tc.BaseLV) then begin
 
               //if (i >= 100) and (tc.ParamBase[2] >= 111) then begin
               //tc.ParamBase[2] := 110;
@@ -726,10 +748,10 @@ end;
               SendCStat1(tc, 0, $0009, tc.StatusPoint);
               SendCStat1(tc, 1, $0001, tc.BaseEXP);
 						end;
-            end else if (Copy(str, 1, 7) = 'jlevel ') and ((DebugCMD and $0008) <> 0) then begin
+            end else if (Copy(str, 1, 7) = 'jlevel ') and ((DebugCMD and $0008) <> 0) and (tid.ChangeLevel = 1) then begin
 						//スピード変更
 						Val(Copy(str, 8, 256), i, k);
-						if (k = 0) and (i >= 1) and (i <= 99) then begin
+						if (k = 0) and (i >= 1) and (i <= 999) then begin
 							tc.JobLV := i;
 
               for i := 2 to 330 do begin
@@ -748,14 +770,14 @@ end;
 				      j := 3;
 			        end;
               tc.JobNextEXP := ExpTable[j][tc.JobLV];
-              
+
               CalcStat(tc);
               SendCStat(tc);
               SendCStat1(tc, 0, $0037, tc.JobLV);
               SendCStat1(tc, 0, $000c, tc.SkillPoint);
               SendCStat1(tc, 1, $0002, tc.JobEXP);
 						end;
-					end else if (Copy(str, 1, 5) = 'warp ') and ((DebugCMD and $0004) <> 0) then begin
+					end else if (Copy(str, 1, 5) = 'warp ') and ((DebugCMD and $0004) <> 0) and (tid.Warp = 1) then begin
 						//任意の場所にワープ
 						sl := TStringList.Create;
 						sl.DelimitedText := Copy(str, 6, 256);
@@ -771,7 +793,7 @@ end;
 							ta := MapList.Objects[MapList.IndexOf(sl.Strings[0])] as TMapList;
 							if (i < 0) or (i >= ta.Size.X) or (j < 0) or (j >= ta.Size.Y) then continue;
 							//ワープ開始
-							if (tc.Option < 64) then SendCLeave(tc, 2);
+							if (tc.Hidden = false) then SendCLeave(tc, 2);
 							tc.tmpMap := sl.Strings[0];
 							tc.Point := Point(i,j);
 							MapMove(Socket, sl.Strings[0], Point(i,j));
@@ -780,7 +802,14 @@ end;
 							sl.Free();
 						end;
 
-          end else if (Copy(str, 1, 11) = 'changestat ') and ((DebugCMD and $0004) <> 0) then begin
+          end else if (Copy(str, 1, 11) = 'skillpoint ') and ((DebugCMD and $0008) <> 0) and (tid.ChangeStatSkill = 1) then begin
+						Val(Copy(str, 12, 256), i, k);
+						if (k = 0) and (i >= 0) and (i <= 1001) then begin
+            tc.SkillPoint := i;
+            SendCStat1(tc, 0, $000c, tc.SkillPoint);
+            end;
+
+          end else if (Copy(str, 1, 11) = 'changestat ') and ((DebugCMD and $0004) <> 0) and (tid.ChangeStatSkill = 1) then begin
 						sl := TStringList.Create;
 						sl.DelimitedText := Copy(str, 12, 256);
 						try
@@ -805,7 +834,7 @@ end;
 							sl.Free();
 						end;
 
-					end else if (Copy(str, 1, 6) = 'speed ') and ((DebugCMD and $0008) <> 0) then begin
+					end else if (Copy(str, 1, 6) = 'speed ') and ((DebugCMD and $0008) <> 0) and (tid.ChangeStatSkill = 1) then begin
 						//スピード変更
 						Val(Copy(str, 6, 256), i, k);
 						if (k = 0) and (i >= 25) and (i <= 1000) then begin
@@ -817,18 +846,194 @@ end;
 							Socket.SendBuf(buf, 8);
 						end;
 
-      end else if (Copy(str, 1, 5) = 'whois') and ((DebugCMD and $0002) <> 0) then begin
+      end else if (Copy(str, 1, 5) = 'whois') and ((DebugCMD and $0002) <> 0) and (tid.Whois = 1) then begin
         str2 := 'Users Currently Logged in:';
         for i := 0 to CharaName.Count - 1 do begin
 				tc1 := CharaName.Objects[i] as TChara;
 				if tc1.Login = 2 then begin
+        if str2 = 'Users Currently Logged in:' Then begin
+        str2 := str2 + tc1.Name;
+        end else begin
         str2 := str2 + ',' + tc1.Name;
+        end;
 				end;
         end;
         DebugOut.Lines.Add(str2);
+        w := 200;
+        WFIFOW(0, $009a);
+        WFIFOW(2, w);
+        WFIFOS(4, str2, w - 4);
+        tc.Socket.SendBuf(buf, w);
+
+  end else if (Copy(str, 1, 8) = 'monster ') and ((DebugCMD and $0004) <> 0) and (tid.MonsterSummon = 1) then begin
+      sl := TStringList.Create;
+      sl.DelimitedText := Copy(str, 9, 256);
+							if sl.Count = 2 then begin
+              if (MobDBName.IndexOf(sl.Strings[0]) <> -1) then begin
+							Val(sl.Strings[1], j, k);
+							if(j >= 1) and (j <= 20) then begin
+
+          for l := 1 to j do begin
+          tm := tc.MData;
+
+          ts := TMob.Create;
+					ts.Data := MobDBName.Objects[MobDBName.IndexOf(sl.Strings[0])] as TMobDB;
+					ts.ID := NowMobID;
+					Inc(NowMobID);
+					ts.Name := ts.Data.JName;
+					ts.JID := ts.Data.ID;
+					ts.Map := tc.Map;
+          ts.Data.isLink :=false;
+          //ts.Data.isLoot :=false;
+					//プレイヤーの周囲9マスのどこかに召還
+					ts.Point.X := tc.Point.X + Random(2) - 1;
+					ts.Point.Y := tc.Point.Y + Random(2) - 1;
+
+					ts.Dir := Random(8);
+					ts.HP := ts.Data.HP;
+					ts.Speed := ts.Data.Speed;
+
+					//沸き間隔を極大に設定
+					//ここはちょっと処理が適当かな？
+
+					ts.SpawnDelay1 := $7FFFFFFF;
+					ts.SpawnDelay2 := 0;
+
+					ts.SpawnType := 0;
+					ts.SpawnTick := 0;
+					if ts.Data.isDontMove then
+						ts.MoveWait := $FFFFFFFF
+					else
+          ts.MoveWait := timeGetTime();
+					ts.ATarget := 0;
+					ts.ATKPer := 100;
+					ts.DEFPer := 100;
+					ts.DmgTick := 0;
+
+          ts.Element := ts.Data.Element;
+
+          if (SummonMonsterName = true) then begin
+          ts.Name := ts.Data.JName;
+          end else begin
+					ts.Name := 'Summon Monster';
+          end;
+
+          if (SummonMonsterExp = false) then begin
+					ts.Data.MEXP := 0;
+					ts.Data.EXP := 0;
+					ts.Data.JEXP := 0;
+          end;
+
+          if (SummonMonsterAgo = true) then begin
+					ts.isActive := true;
+          end else begin
+          ts.isActive := ts.Data.isActive;
+          end;
+
+					ts.MoveWait := timeGetTime();
+
+					for j := 0 to 31 do begin
+						ts.EXPDist[j].CData := nil;
+						ts.EXPDist[j].Dmg := 0;
+					end;
+					if ts.Data.MEXP <> 0 then begin
+						for j := 0 to 31 do begin
+							ts.MVPDist[j].CData := nil;
+							ts.MVPDist[j].Dmg := 0;
+						end;
+						ts.MVPDist[0].Dmg := ts.Data.HP * 30 div 100; //FAに30%加算
+					end;
+          ts.isSummon := True;
+          ts.EmperiumID := 0;
+          
+					tm.Mob.AddObject(ts.ID, ts);
+					tm.Block[ts.Point.X div 8][ts.Point.Y div 8].Mob.AddObject(ts.ID, ts);
+
+					SendMData(tc.Socket, ts);
+					//周囲に送信
+					SendBCmd(tm,ts.Point,41,tc,False);
 
 
-          end else if (Copy(str, 1, 5) = 'zeny ') and ((DebugCMD and $0008) <> 0) then begin
+if (SummonMonsterMob = true) then begin
+    k := SlaveDBName.IndexOf(sl.Strings[0]);
+    if (k <> -1) then begin
+     ts.isLeader := true;
+     
+     tss := SlaveDBName.Objects[k] as TSlaveDB;
+     if sl.Strings[0] = tss.Name then begin
+
+     h := tss.TotalSlaves;
+     ts.SlaveCount := h;
+     repeat
+      for i := 0 to 4 do begin
+        if (tss.Slaves[i] <> -1) and (h <> 0) then begin
+          ts1 := TMob.Create;
+					ts1.Data := MobDBName.Objects[tss.Slaves[i]] as TMobDB;
+					ts1.ID := NowMobID;
+          ts.Slaves[h] := ts1.ID;
+					Inc(NowMobID);
+					ts1.Name := ts1.Data.JName;
+					ts1.JID := ts1.Data.ID;
+          ts1.LeaderID := ts.ID;
+          ts1.Data.isLink := false;
+					ts1.Map := ts.Map;
+					ts1.Point.X := ts.Point.X;
+					ts1.Point.Y := ts.Point.Y;
+					ts1.Dir := ts.Dir;
+					ts1.HP := ts1.Data.HP;
+          if ts.Data.Speed < ts1.Data.Speed then begin
+					ts1.Speed := ts.Data.Speed;
+          end else begin
+          ts1.Speed := ts1.Data.Speed;
+          end;
+					ts1.SpawnDelay1 := $7FFFFFFF;
+					ts1.SpawnDelay2 := 0;
+					ts1.SpawnType := 0;
+					ts1.SpawnTick := 0;
+					if ts1.Data.isDontMove then
+						ts1.MoveWait := $FFFFFFFF
+					else
+          ts1.MoveWait := ts.MoveWait;
+					ts1.ATarget := 0;
+					ts1.ATKPer := 100;
+					ts1.DEFPer := 100;
+					ts1.DmgTick := 0;
+          ts1.Element := ts1.Data.Element;
+          ts1.isActive := false;
+					for j := 0 to 31 do begin
+						ts1.EXPDist[j].CData := nil;
+						ts1.EXPDist[j].Dmg := 0;
+					end;
+					if ts1.Data.MEXP <> 0 then begin
+						for j := 0 to 31 do begin
+							ts1.MVPDist[j].CData := nil;
+							ts1.MVPDist[j].Dmg := 0;
+						end;
+						ts1.MVPDist[0].Dmg := ts1.Data.HP * 30 div 100; //FAに30%加算
+					end;
+					tm.Mob.AddObject(ts1.ID, ts1);
+					tm.Block[ts1.Point.X div 8][ts1.Point.Y div 8].Mob.AddObject(ts1.ID, ts1);
+					ts1.isSummon := true;
+          ts1.isSlave := true;
+          ts1.EmperiumID := 0;
+          
+					SendMData(tc.Socket, ts1);
+					//周囲に送信
+					SendBCmd(tm,ts1.Point,41,tc,False);
+
+          h := h - 1;
+        end;
+      end;
+     until (h <= 0);
+
+     end;
+    end;
+end;
+end;
+end;
+end;
+end;
+          end else if (Copy(str, 1, 5) = 'zeny ') and ((DebugCMD and $0008) <> 0) and (tid.ChangeStatSkill = 1) then begin
 						Val(Copy(str, 6, 256), i, k);
 						if (k = 0) and (i >= 0) and (i <= 9999999999) and (tc.Zeny + i <= 9999999999) then begin
 							tc.Zeny := tc.Zeny + i;
@@ -838,12 +1043,43 @@ end;
 					    Socket.SendBuf(buf, 8);
 						end;
 
-          end else if (Copy(str, 1, 5) = 'goto ') and ((DebugCMD and $0008) <> 0) then begin
+          end else if (Copy(str, 1, 4) = 'ban ') and ((DebugCMD and $0008) <> 0) and (tid.GotoSummonBanish = 1) then begin
+              s := Copy(str, 5, 256);
+							if CharaName.Indexof(s) <> -1 then begin
+              tc1 := CharaName.Objects[CharaName.Indexof(s)] as TChara;
+
+              if BannedDB.IndexOf(tc1.IP) = -1 then begin
+              tbn := TBan.Create;
+              tbn.BIP := tc1.IP;
+              BannedDB.AddObject(tbn.BIP, tbn);
+              
+              if (tc1.Login <> 0) then begin
+              WFIFOW( 0, $0081);
+              WFIFOB( 2, 08);
+              tc1.Socket.SendBuf(buf, 3);
+              end;
+
+              if (UseDatabase = true) then begin
+              AssignFile(txt, AppPath + 'addban.txt');
+       	      if not FileExists(AppPath + 'addban.txt') then begin
+              Rewrite(txt);
+              end else begin
+              Append(txt);
+              end;
+              Writeln(txt, tc1.IP);
+              DebugOut.Lines.Add('Ban Added: ' + tc1.IP);
+              Flush(txt);
+						  CloseFile(txt);
+              end;
+              end;
+              end;
+              
+           end else if (Copy(str, 1, 5) = 'goto ') and ((DebugCMD and $0008) <> 0) and (tid.GotoSummonBanish = 1) then begin
             s := Copy(str, 6, 256);
 						try
 							if CharaName.Indexof(s) <> -1 then begin
               tc1 := CharaName.Objects[CharaName.Indexof(s)] as TChara;
-							if (tc.Option < 64) then SendCLeave(tc, 2);
+							if (tc.Hidden = false) then SendCLeave(tc, 2);
 							tc.tmpMap := tc1.Map;
 							tc.Point := tc1.Point;
 							MapMove(Socket, tc1.Map, tc1.Point);
@@ -852,7 +1088,30 @@ end;
 
 						end;
 
-          end else if (Copy(str, 1, 5) = 'kill ') and ((DebugCMD and $0008) <> 0) then begin
+          end else if (Copy(str, 1, 5) = 'kick ') and ((DebugCMD and $0008) <> 0) and (tid.GotoSummonBanish = 1) then begin
+              s := Copy(str, 6, 256);
+							if CharaName.Indexof(s) <> -1 then begin
+              tc1 := CharaName.Objects[CharaName.Indexof(s)] as TChara;
+
+              if (tc1.Login <> 0) then begin
+              WFIFOW( 0, $0081);
+              WFIFOB( 2, 08);
+              tc1.Socket.SendBuf(buf, 3);
+              end;
+              end;
+
+          end else if (Copy(str, 1, 7) = 'kickall') and ((DebugCMD and $0008) <> 0) and (tid.GotoSummonBanish = 1) then begin
+							for i := 0 to CharaName.Count -1 do begin
+              tc1 := CharaName.Objects[i] as TChara;
+
+              if (tc1.Login <> 0) then begin
+              WFIFOW( 0, $0081);
+              WFIFOB( 2, 08);
+              tc1.Socket.SendBuf(buf, 3);
+              end;
+              end;
+
+          end else if (Copy(str, 1, 5) = 'kill ') and ((DebugCMD and $0008) <> 0) and (tid.KillDieAlive = 1) then begin
             s := Copy(str, 6, 256);
 						try
 							if CharaName.Indexof(s) <> -1 then begin
@@ -873,7 +1132,7 @@ end;
 
 						end;
 
-        end else if (Copy(str, 1, 7) = 'summon ') and ((DebugCMD and $0008) <> 0) then begin
+        end else if (Copy(str, 1, 7) = 'summon ') and ((DebugCMD and $0008) <> 0) and (tid.GotoSummonBanish = 1) then begin
             s := Copy(str, 8, 256);
 						try
 							if CharaName.Indexof(s) <> -1 then begin
@@ -889,7 +1148,7 @@ end;
 
 						end;
 
-            end else if (Copy(str, 1, 7) = 'banish ') and ((DebugCMD and $0008) <> 0) then begin
+            end else if (Copy(str, 1, 7) = 'banish ') and ((DebugCMD and $0008) <> 0) and (tid.GotoSummonBanish = 1) then begin
             sl := TStringList.Create;
 						sl.DelimitedText := Copy(str, 8, 256);
 						try
@@ -925,12 +1184,12 @@ end;
 							sl.Free();
 						end;
 
-					end else if (Copy(str, 1, 4) = 'job ') and ((DebugCMD and $0010) <> 0) then begin
+					end else if (Copy(str, 1, 4) = 'job ') and ((DebugCMD and $0010) <> 0) and (tid.ChangeJob = 1) then begin
 {修正}                                          if (tc.JID <> 0) or ((DebugCMD and $0020) <> 0) then //ノービスからは出来ない
                                                 begin
 						        //職業変更
 										Val(Copy(str, 5, 256), i, k);
-										if (k = 0) and (i >= 0) and (i <= 20) and (i <> 13) then begin
+										if (k = 0) and (i >= 0) and (i <= 23) and (i <> 13) and (i <> 21) then begin
 						        	tc.JID := i;
 											//ステータス再計算
 											tc.ClothesColor := 0; //強制的に初期値
@@ -945,7 +1204,7 @@ end;
 										end;
 																								end;
 {修正ココまで}
-					end else if (Copy(str, 1, 7) = 'ccolor ') and ((DebugCMD and $0040) <> 0)  then begin
+					end else if (Copy(str, 1, 7) = 'ccolor ') and ((DebugCMD and $0040) <> 0)  and (tid.ChangeColorStyle = 1) then begin
 						//服の色変更
 						Val(Copy(str, 8, 256), i, k);
 						if (k = 0) and (i >= 0) and (i <= 77) then begin
@@ -957,7 +1216,7 @@ end;
 							SendBCmd(tm, tc.Point, 8);
 						end;
 {髪色変更追加}
-					end else if Copy(str, 1, 7) = 'hcolor ' then begin
+					end else if (Copy(str, 1, 7) = 'hcolor ') and (tid.ChangeColorStyle = 1) then begin
 						//髪の色変更
 						Val(Copy(str, 8, 256), i, k);
 						if (k = 0) and (i >= 0) and (i <= 8) then begin
@@ -968,7 +1227,7 @@ end;
 							WFIFOB(7, i);
 							SendBCmd(tm, tc.Point, 8);
 						end;
-          end else if Copy(str, 1, 7) = 'hstyle ' then begin
+          end else if (Copy(str, 1, 7) = 'hstyle ') and (tid.ChangeColorStyle = 1) then begin
 						//髪の色変更
 						Val(Copy(str, 8, 256), i, k);
 						if (k = 0) and (i >= 0) and (i <= 19) then begin
@@ -980,7 +1239,7 @@ end;
 							SendBCmd(tm, tc.Point, 8);
 						end;
 {髪色変更追加ココまで}
-					end else if (Copy(str, 1, 3) = 'die') and ((DebugCMD and $0080) <> 0)  then begin
+					end else if (Copy(str, 1, 3) = 'die') and ((DebugCMD and $0080) <> 0) and (tid.KillDieAlive = 1) then begin
 						//自殺
 						tc.HP := 0;
 						tc.Sit := 1;
@@ -993,7 +1252,7 @@ end;
             WFIFOL( 2, tc.ID);
             WFIFOB( 6, 1);
             SendBCmd(tm, tc.Point, 7);
-					end else if (Copy(str, 1, 5) = 'alive') and ((DebugCMD and $0100) <> 0)  then begin
+					end else if (Copy(str, 1, 5) = 'alive') and ((DebugCMD and $0100) <> 0) and (tid.KillDieAlive =1 ) then begin
 						//生き返り
 						tc.HP := tc.MAXHP;
 						tc.SP := tc.MAXSP;
@@ -1004,7 +1263,7 @@ end;
 						WFIFOL( 2, tc.ID);
 						WFIFOW( 6, 100);
 						SendBCmd(tm, tc.Point, 8);
-					end else if (Copy(str, 1, 5) = 'item ') and ((DebugCMD and $0200) <> 0)  then begin
+					end else if (Copy(str, 1, 5) = 'item ') and ((DebugCMD and $0200) <> 0) and (tid.ItemSummon = 1) then begin
 						//アイテム作成
 						sl := TStringList.Create;
 						sl.DelimitedText := Copy(str, 6, 256);
@@ -1052,7 +1311,7 @@ end;
 						end;
 						sl.Free();
 
-					end else if (Copy(str, 1, 7) = 'option ') and ((DebugCMD and $0400) <> 0) then begin
+					end else if (Copy(str, 1, 7) = 'option ') and ((DebugCMD and $0400) <> 0) and (tid.ChangeOption = 1) then begin
 						if Copy(str, 8, 5) = 'sight' then begin
 							tc.Option := tc.Option or 1;
 						end else if ((tc.JID = 5) or (tc.JID = 10)) and (Copy(str, 8, 4) = 'cart') then begin
@@ -1074,7 +1333,7 @@ end;
 						WFIFOB(12, 0);
 						SendBCmd(tm, tc.Point, 13);
 
-					end else if (Copy(str, 1, 7) = 'refine ') and ((DebugCMD and $0800) <> 0)  then begin
+					end else if (Copy(str, 1, 7) = 'refine ') and ((DebugCMD and $0800) <> 0) and (tid.Refine = 1)  then begin
 						//装備中の武器防具を精錬
 						Val(Copy(str, 8, 256), j, k);
 						if (k <> 0) or (j < 0) or (j > 10) then continue;
@@ -1095,12 +1354,13 @@ end;
 						SendBCmd(tm, tc.Point, 10, tc);
 						CalcStat(tc);
 						SendCStat(tc);
-					end else if (Copy(str, 1, 5) = 'unit ') and ((DebugCMD and $1000) <> 0) then begin
+					end else if (Copy(str, 1, 5) = 'unit ') and ((DebugCMD and $1000) <> 0) and (tid.AutoRawUnit = 1) then begin
 						//スキル効能地表示テスト
 						Val(Copy(str, 6, 256), j, k);
 						if (k <> 0) or (j < 0) or (j > 999) then continue;
 						SetSkillUnit(tm, tc.ID, Point(tc.Point.X + 1, tc.Point.Y - 1), timeGetTime(), j, 1, 10000);
-					end else if (Copy(str, 1, 5) = 'stat ') and ((DebugCMD and $2000) <> 0) then begin
+
+					end else if (Copy(str, 1, 5) = 'stat ') and ((DebugCMD and $2000) <> 0) and (tid.ChangeOption = 1) then begin
 						//0x0119パケテスト
 						sl := TStringList.Create;
 						sl.DelimitedText := Copy(str, 6, 256);
@@ -1124,7 +1384,7 @@ end;
 						finally
 							sl.Free();
 						end;
-					end else if (Copy(str, 1, 4) = 'raw ') and ((DebugCMD and $2000) <> 0) then begin
+					end else if (Copy(str, 1, 4) = 'raw ') and ((DebugCMD and $2000) <> 0) and (tid.AutoRawUnit = 1) then begin
 						//任意パケテスト
 						sl := TStringList.Create;
 						sl.DelimitedText := Copy(str, 5, 256);
@@ -1138,7 +1398,16 @@ end;
 							sl.Free();
 						end;
 
-            end else if (Copy(str, 1, 7) = 'statall') and ((DebugCMD and $4000) <> 0) then begin
+        end else if (Copy(str, 1, 6) = 'server') then begin
+           str2 := 'darkWeiss Version 2.9.0.1 -- http://dweiss.sigh.org/forum/';
+           DebugOut.Lines.Add(str2);
+           w := 200;
+           WFIFOW(0, $009a);
+           WFIFOW(2, w);
+           WFIFOS(4, str2, w - 4);
+           tc.Socket.SendBuf(buf, w);
+
+          end else if (Copy(str, 1, 7) = 'statall') and ((DebugCMD and $4000) <> 0) and (tid.ChangeStatSkill = 1) then begin
 
 						  for i := 0 to 5 do begin
 						  tc.ParamBase[i] := 99;
@@ -1148,9 +1417,29 @@ end;
               CalcStat(tc);
               SendCStat(tc);
               SendCStat1(tc, 0, $0009, tc.StatusPoint);
-						DebugOut.Lines.Add('DEBUG* Added all stats to ' + tc.Name);
+						  DebugOut.Lines.Add('DEBUG* Added all stats to ' + tc.Name);
 
-					end else if (Copy(str, 1, 8) = 'skillall') and ((DebugCMD and $4000) <> 0) then begin
+          end else if (Copy(str, 1, 12) = 'changeskill ') and ((DebugCMD and $4000) <> 0) and (tid.ChangeStatSkill = 1) then begin
+
+            sl := TStringList.Create;
+						sl.DelimitedText := Copy(str, 13, 256);
+						if sl.Count = 2 then begin
+							Val(sl.Strings[0], i, k);
+							if k <> 0 then continue;
+							Val(sl.Strings[1], j, k);
+							if k <> 0 then continue;
+
+            if ((i >= 0) and (i <= 157)) or ((i >= 210) and (i <= 330)) then begin
+
+            if (j > tc.Skill[i].Data.MasterLV) then j := tc.Skill[i].Data.MasterLV;
+           tc.Plag := i;
+           tc.PLv := j;
+           tc.Skill[i].Plag := true;
+           SendCSkillList(tc);
+            end;
+            sl.Free;
+            end;
+					end else if (Copy(str, 1, 8) = 'skillall') and ((DebugCMD and $4000) <> 0) and (tid.ChangeStatSkill = 1) then begin
 						//全スキル習得
 {修正}
 						for i := 1 to 157 do begin
@@ -1169,7 +1458,7 @@ end;
 						SendCSKillList(tc);
 {追加}      CalcStat(tc);
             SendCStat(tc);
- 					end else if (Copy(str, 1, 4) = 'auto') and ((DebugCMD and $8000) <> 0) then begin
+ 					end else if (Copy(str, 1, 4) = 'auto') and ((DebugCMD and $8000) <> 0) and (tid.AutoRawUnit = 1) then begin
 						//自動行動テスト
 						sl := TStringList.Create;
 						sl.DelimitedText := Copy(str, 5, 256);
@@ -1187,7 +1476,21 @@ end;
 						end;
 {追加ココまで}
 					end;
+      end else if (h = -1) and (Pos(' : ', str) <> 0) and (Copy(str, Pos(' : ', str) + 3, 1) = '#') then begin
+					str := Copy(str, Pos(' : ', str) + 4, 256);
+
+        if (Copy(str, 1, 6) = 'server') then begin
+          str2 := 'darkWeiss Version 2.9.0.1 -- http://dweiss.sigh.org/forum/';
+          DebugOut.Lines.Add(str2);
+          w := 200;
+          WFIFOW(0, $009a);
+          WFIFOW(2, w);
+          WFIFOS(4, str2, w - 4);
+          tc.Socket.SendBuf(buf, w);
+        end;
+
 				end else begin
+
 					tm := tc.MData;
 
 					WFIFOW(0, $008e);
@@ -1313,31 +1616,34 @@ end;
 			end;
 		//--------------------------------------------------------------------------
 		//030316/030317 Cardinal
-		$0099: //GMメッセージ
+		$0099: //GM
 			begin
-                           {GMかチェック}
-                           tp := tc.PData;
-                           if (tc.ID >=100001) and (tc.ID<=100005) then
-                           if ((tp.GMMode = 1) or ((GMCheck and $01) <> 0))then
-                           {GMかチェック_end}
-                           begin
+      //tp := tc.PData;
+      h := IDTableDB.IndexOf(tc.ID);
+      if (h <> -1) then begin
+      tid := IDTableDB.Objects[h] as TIDTbl;
+      if (tid.BroadCast = 1) then begin
+
 				RFIFOW(2, w);
 				str := RFIFOS(4, w - 4);
+        WFIFOW(0, $009a);
 
-				WFIFOW(0, $009a);
-				//WFIFOW(2, w);
-				//WFIFOS(4, str, w - 4);
-				//Socket.SendBuf(buf, w);
-
-				//ログオンしているすべてのキャラに送信
+        if (Copy(str, 1, 4) = 'blue') then begin
+        for k := 0 to CharaName.Count - 1 do begin
+					tc1 := CharaName.Objects[k] as TChara;
+        if (tc1.Login = 2) and (tc1.Map = tc.Map) then tc1.Socket.SendBuf(buf, w);
+        end;
+				end else begin
 				for k := 0 to CharaName.Count - 1 do begin
 					tc1 := CharaName.Objects[k] as TChara;
-					if tc1.Login = 2 then tc1.Socket.SendBuf(buf, w);
-				end;
-                        	DebugOut.Lines.Add('GM:'+str);
-                           end;
-			end;
-                        
+        if tc1.Login = 2 then tc1.Socket.SendBuf(buf, w);
+        end;
+        end;
+
+      DebugOut.Lines.Add('GM:'+str);
+      end;
+      end;
+      end;
 		//--------------------------------------------------------------------------
 		$009b: //向き変更
 			begin
@@ -1376,6 +1682,7 @@ end;
 					tn.Point.X := tc.Point.X - 1 + Random(3);
 					tn.Point.Y := tc.Point.Y - 1 + Random(3);
 					tn.CType := 3;
+          tn.Enable := true;
 					tn.Item := TItem.Create;
 					tn.Item.ID := tc.Item[w1].ID;
 					tn.Item.Amount := w2;
@@ -1457,23 +1764,35 @@ end;
 									SendCStat1(tc, 0, 7, tc.SP);
 								end;
 								Dec(tc.Item[w].Amount);
-								WFIFOW( 0, $00a8);
-								WFIFOW( 2, w);
-								WFIFOW( 4, tc.Item[w].Amount);
-								WFIFOB( 6, 1);
-								Socket.SendBuf(buf, 7);
+								//WFIFOW( 0, $00a8);
+								//WFIFOW( 2, w);
+								//WFIFOW( 4, tc.Item[w].Amount);
+								//WFIFOB( 6, 1);
+								//Socket.SendBuf(buf, 7);
 								//030316追加 Cardinal
+
 								if tc.Item[w].Amount = 0 then tc.Item[w].ID := 0;
 								tc.Weight := tc.Weight - td.Weight;
 								//アイテム数減少
 								WFIFOW( 0, $00af);
 								WFIFOW( 2, w);
 								WFIFOW( 4, 1);
-								//重量減少
-								WFIFOW( 0, $00b0);
-								WFIFOW( 2, $0018);
-								WFIFOL( 4, tc.Weight);
-								Socket.SendBuf(buf, 8);
+                Socket.SendBuf(buf, 6);
+
+                WFIFOW( 0, $00b0);
+                WFIFOW( 2, $0018);
+                WFIFOL( 4, tc.Weight);
+                Socket.SendBuf(buf, 8);
+
+                //tm := Map.Objects[Map.IndexOf(tc.Map)] as TMap;
+                WFIFOW( 0, $01c8);
+                WFIFOW( 2, 15);
+                WFIFOW( 4, td.ID);
+                WFIFOL( 6, l);
+                WFIFOB( 10, 35);
+                WFIFOL( 11,1);
+                Socket.SendBuf(buf, 15);
+                //SendBCmd(tm,tc.Point,15,tc,false);
 								b := 1;
 							end;
 						end;
@@ -1695,6 +2014,8 @@ end;
 										tm.Block[ts.Point.X div 8][ts.Point.Y div 8].Mob.AddObject(ts.ID, ts);
 
 										ts.isSummon := True;
+                    ts.EmperiumID := 0;
+                    
 										SendMData(tc.Socket, ts);
 										//周囲に送信
 										SendBCmd(tm,ts.Point,41,tc,False);
@@ -2146,6 +2467,7 @@ end;
 {キューペットここまで}
 				end else begin
 					if tc.Item[w1].Data.IType = 10 then begin
+            //arrow equip
 						WFIFOW(0, $013c);
 						WFIFOW(2, 0);
 						Socket.SendBuf(buf, 4);
@@ -2173,6 +2495,12 @@ end;
 						WFIFOW(2, w1);
 						Socket.SendBuf(buf, 4);
 					end else begin
+            //equip wep
+            //if (tc.Item[w1].Data.IType <> 0) then begin
+            //WFIFOW(0, $013b);
+						//WFIFOW(2, 3);
+						//Socket.SendBuf(buf, 4);
+            //end;
 						WFIFOW(0, $00aa);
 						WFIFOW(2, w1);
 						WFIFOW(4, tc.Item[w1].Data.Loc);
@@ -2180,9 +2508,29 @@ end;
 						Socket.SendBuf(buf, 7);
 					end;
 				end;       
-				CalcStat(tc);
-{修正}	SendCSkillList(tc);
-				SendCStat(tc, true);
+				//CalcStat(tc);
+{修正}	//SendCSkillList(tc);
+				//SendCStat(tc, true);
+        
+				CalcStat(tc); 
+{修正}   SendCSkillList(tc); 
+                                        if (tc.Item[w1].Data.IType = 4) then begin 
+                                        WFIFOW(0, $01d7); 
+                                        WFIFOL(2, tc.ID); 
+                                        WFIFOB(6, 2); 
+                                        WFIFOW(7, tc.Item[w1].Data.id); 
+                                        WFIFOW(9, tc.Shield); 
+                                        Socket.SendBuf(buf, 11); 
+                                        end; 
+                                        if tc.Item[w1].Data.IType = 5 then begin 
+                                           WFIFOW(0, $00c3);
+                                           WFIFOL(2, tc.ID);
+                                           WFIFOB(6, 8);
+                                           WFIFOB(7, tc.Item[w1].Data.view);
+                                           Socket.SendBuf(buf, 8);
+                                        end; 
+                                        SendCStat(tc, true);
+
 			end;
 		//--------------------------------------------------------------------------
 		$00ab: //アイテム装備解除
@@ -2192,6 +2540,7 @@ end;
 				if tc.EqLock = true then continue;
 {精錬NPC機能追加ココまで}
 				RFIFOW(2, w);
+        //DebugOut.Lines.Add(IntToStr(tc.Item[w].Equip));
 				if tc.Item[w].Equip = 32768 then begin
 					tc.Item[w].Equip := 0;
 					WFIFOW(0, $013c);
@@ -2205,7 +2554,21 @@ end;
 					WFIFOB(6, 1);
 					Socket.SendBuf(buf, 7);
 				end;
-                                                 
+        if (tc.Item[w].Data.IType = 4) then begin
+        WFIFOW(0, $01d7);
+        WFIFOL(2, tc.ID);
+        WFIFOB(6, 2);
+        WFIFOW(7, 0);
+        WFIFOW(9, tc.Shield);
+        Socket.SendBuf(buf, 11);
+        end;
+        if (tc.Item[w].Data.IType = 5) then begin
+        WFIFOW(0, $00c3);
+        WFIFOL(2, tc.ID);
+        WFIFOB(6, 8);
+        WFIFOB(7, 0);
+        Socket.SendBuf(buf, 8);
+        end;
 				CalcStat(tc);
 				SendCStat(tc, true);
 			end;
@@ -2318,6 +2681,9 @@ end;
 									if tc.Skill[37].Lv <> 0 then begin
 										l := tn.ShopItem[i].Price * cardinal(tc.Skill[37].Data.Data1[tc.Skill[37].Lv]) div 100;
 										if l = 0 then	l := 1;
+                  end else if (tc.Skill[224].Lv <> 0) then begin
+                    l := tn.ShopItem[i].Price * cardinal(tc.Skill[224].Data.Data1[tc.Skill[224].Lv]) div 100;
+										if l = 0 then	l := 1;
 									end else begin
 										l := tn.ShopItem[i].Price;
 									end;
@@ -2369,6 +2735,7 @@ end;
 				for i := 0 to ((w - 4) div 4) - 1 do begin
 					RFIFOW(4 + i*4, w1);
 					RFIFOW(6 + i*4, w2);
+          if (w1 < 1) then continue;
 					ww[i][0] := w1;
 					ww[i][1] := w2;
 					k := -1;
@@ -2377,6 +2744,8 @@ end;
 							k := j;
 							if tc.Skill[37].Lv <> 0 then begin
 								l := l + (tn.ShopItem[j].Price * cardinal(tc.Skill[37].Data.Data1[tc.Skill[37].Lv]) div 100) * w1;
+              end else if tc.Skill[224].Lv <> 0 then begin
+                l := l + (tn.ShopItem[j].Price * cardinal(tc.Skill[224].Data.Data1[tc.Skill[224].Lv]) div 100) * w1;
 							end else begin
 								l := l + tn.ShopItem[j].Price * w1;
 							end;
@@ -2404,6 +2773,8 @@ end;
 								td := tn.ShopItem[j].Data;
 								if tc.Skill[37].Lv <> 0 then begin
 									l := (tn.ShopItem[j].Price * cardinal(tc.Skill[37].Data.Data1[tc.Skill[37].Lv]) div 100);
+                end else if tc.Skill[224].Lv <> 0 then begin
+									l := (tn.ShopItem[j].Price * cardinal(tc.Skill[224].Data.Data1[tc.Skill[224].Lv]) div 100);
 								end else begin
 									l := tn.ShopItem[j].Price;
 								end;
@@ -3070,38 +3441,39 @@ end;
 				if j = 0 then begin
 					continue;
 				end;
-				if tp.Kafra.Item[j].Amount + w2 > 30000 then begin
+        tkf := KafraDB.IndexOfObject(tp.ID) as TKafra;
+				if tkf.Kafra.Item[j].Amount + w2 > 30000 then begin
 					continue;
 				end;
 				//倉庫にアイテム追加
-				tp.Kafra.Item[j].ID := tc.Item[w1].ID;
-				Inc(tp.Kafra.Item[j].Amount, w2);
-				tp.Kafra.Item[j].Equip := 0;
-				tp.Kafra.Item[j].Identify := tc.Item[w1].Identify;
-				tp.Kafra.Item[j].Refine := tc.Item[w1].Refine;
-				tp.Kafra.Item[j].Attr := tc.Item[w1].Attr;
-				tp.Kafra.Item[j].Card[0] := tc.Item[w1].Card[0];
-				tp.Kafra.Item[j].Card[1] := tc.Item[w1].Card[1];
-				tp.Kafra.Item[j].Card[2] := tc.Item[w1].Card[2];
-				tp.Kafra.Item[j].Card[3] := tc.Item[w1].Card[3];
-				tp.Kafra.Item[j].Data := tc.Item[w1].Data;
+				tkf.Kafra.Item[j].ID := tc.Item[w1].ID;
+				Inc(tkf.Kafra.Item[j].Amount, w2);
+				tkf.Kafra.Item[j].Equip := 0;
+				tkf.Kafra.Item[j].Identify := tc.Item[w1].Identify;
+				tkf.Kafra.Item[j].Refine := tc.Item[w1].Refine;
+				tkf.Kafra.Item[j].Attr := tc.Item[w1].Attr;
+				tkf.Kafra.Item[j].Card[0] := tc.Item[w1].Card[0];
+				tkf.Kafra.Item[j].Card[1] := tc.Item[w1].Card[1];
+				tkf.Kafra.Item[j].Card[2] := tc.Item[w1].Card[2];
+				tkf.Kafra.Item[j].Card[3] := tc.Item[w1].Card[3];
+				tkf.Kafra.Item[j].Data := tc.Item[w1].Data;
 				//パケ送信
 				WFIFOW( 0, $00f4);
 				WFIFOW( 2, j);
-				WFIFOL( 4, tp.Kafra.Item[j].Amount);
-				WFIFOW( 8, tp.Kafra.Item[j].ID);
-				WFIFOB(10, tp.Kafra.Item[j].Identify);
-				WFIFOB(11, tp.Kafra.Item[j].Attr);
-				WFIFOB(12, tp.Kafra.Item[j].Refine);
-				WFIFOW(13, tp.Kafra.Item[j].Card[0]);
-				WFIFOW(15, tp.Kafra.Item[j].Card[1]);
-				WFIFOW(17, tp.Kafra.Item[j].Card[2]);
-				WFIFOW(19, tp.Kafra.Item[j].Card[3]);
+				WFIFOL( 4, tkf.Kafra.Item[j].Amount);
+				WFIFOW( 8, tkf.Kafra.Item[j].ID);
+				WFIFOB(10, tkf.Kafra.Item[j].Identify);
+				WFIFOB(11, tkf.Kafra.Item[j].Attr);
+				WFIFOB(12, tkf.Kafra.Item[j].Refine);
+				WFIFOW(13, tkf.Kafra.Item[j].Card[0]);
+				WFIFOW(15, tkf.Kafra.Item[j].Card[1]);
+				WFIFOW(17, tkf.Kafra.Item[j].Card[2]);
+				WFIFOW(19, tkf.Kafra.Item[j].Card[3]);
 				Socket.SendBuf(buf, 21);
 				//倉庫アイテム数変更
-				Inc(tp.Kafra.Count);
+				Inc(tkf.Kafra.Count);
 				WFIFOW(0, $00f2);
-				WFIFOW(2, tp.Kafra.Count);
+				WFIFOW(2, tkf.Kafra.Count);
 				WFIFOW(4, 100);
 				tc.Socket.SendBuf(buf, 6);
 				//アイテム数減少
@@ -3113,7 +3485,7 @@ end;
 				Socket.SendBuf(buf, 6);
 				//重量変更
 				tc.Weight := tc.Weight - tc.Item[w1].Data.Weight * w2;
-        Inc(tp.Kafra.Weight,(tc.Item[w1].Data.Weight * w2));
+        Inc(tkf.Kafra.Weight,(tc.Item[w1].Data.Weight * w2));
 				WFIFOW( 0, $00b0);
 				WFIFOW( 2, $0018);
 				WFIFOL( 4, tc.Weight);
@@ -3123,21 +3495,22 @@ end;
 		$00f5: //倉庫からアイテム取り出し
 			begin
 				tp := tc.PData;
+        tkf := KafraDB.IndexOfObject(tp.ID) as TKafra;
 				RFIFOW(2, w1);
 				RFIFOL(4, l);
 				if l > 30000 then l := 30000;
 				w2 := l;
-				if (tp.Kafra.Item[w1].ID = 0) or (tp.Kafra.Item[w1].Amount < w2) then begin
+				if (tkf.Kafra.Item[w1].ID = 0) or (tkf.Kafra.Item[w1].Amount < w2) then begin
 					continue;
 				end;
-				weight := tp.Kafra.Item[w1].Data.Weight * w2;
+				weight := tkf.Kafra.Item[w1].Data.Weight * w2;
 				if cardinal(tc.MaxWeight - tc.Weight) < weight then begin
 					//重量オーバー
 					WFIFOW(0, $00ca);
 					WFIFOB(2, 2);  //1=お金が足りない 2=重量オーバー 3=アイテム最大種類数オーバー
 					Socket.SendBuf(buf, 3);
 				end;
-				j := SearchCInventory(tc, tp.Kafra.Item[w1].ID, tp.Kafra.Item[w1].Data.IEquip);
+				j := SearchCInventory(tc, tkf.Kafra.Item[w1].ID, tkf.Kafra.Item[w1].Data.IEquip);
 				if j = 0 then begin
 					continue;
 				end;
@@ -3145,34 +3518,34 @@ end;
 					continue;
 				end;
 				//倉庫からアイテム追加
-				tc.Item[j].ID := tp.Kafra.Item[w1].ID;
+				tc.Item[j].ID := tkf.Kafra.Item[w1].ID;
 				Inc(tc.Item[j].Amount, w2);
 				tc.Item[j].Equip := 0;
-				tc.Item[j].Identify := tp.Kafra.Item[w1].Identify;
-				tc.Item[j].Refine := tp.Kafra.Item[w1].Refine;
-				tc.Item[j].Attr := tp.Kafra.Item[w1].Attr;
-				tc.Item[j].Card[0] := tp.Kafra.Item[w1].Card[0];
-				tc.Item[j].Card[1] := tp.Kafra.Item[w1].Card[1];
-				tc.Item[j].Card[2] := tp.Kafra.Item[w1].Card[2];
-				tc.Item[j].Card[3] := tp.Kafra.Item[w1].Card[3];
-				tc.Item[j].Data := tp.Kafra.Item[w1].Data;
+				tc.Item[j].Identify := tkf.Kafra.Item[w1].Identify;
+				tc.Item[j].Refine := tkf.Kafra.Item[w1].Refine;
+				tc.Item[j].Attr := tkf.Kafra.Item[w1].Attr;
+				tc.Item[j].Card[0] := tkf.Kafra.Item[w1].Card[0];
+				tc.Item[j].Card[1] := tkf.Kafra.Item[w1].Card[1];
+				tc.Item[j].Card[2] := tkf.Kafra.Item[w1].Card[2];
+				tc.Item[j].Card[3] := tkf.Kafra.Item[w1].Card[3];
+				tc.Item[j].Data := tkf.Kafra.Item[w1].Data;
 				SendCGetItem(tc, j, w2);
 				//倉庫のアイテム数減少
-				Dec(tp.Kafra.Item[w1].Amount, w2);
-				if tp.Kafra.Item[w1].Amount = 0 then tp.Kafra.Item[w1].ID := 0;
+				Dec(tkf.Kafra.Item[w1].Amount, w2);
+				if tkf.Kafra.Item[w1].Amount = 0 then tkf.Kafra.Item[w1].ID := 0;
 				WFIFOW( 0, $00f6);
 				WFIFOW( 2, w1);
 				WFIFOL( 4, l);
 				Socket.SendBuf(buf, 8);
 				//倉庫アイテム数変更
-				Dec(tp.Kafra.Count);
+				Dec(tkf.Kafra.Count);
 				WFIFOW(0, $00f2);
-				WFIFOW(2, tp.Kafra.Count);
+				WFIFOW(2, tkf.Kafra.Count);
 				WFIFOW(4, 100);
 				tc.Socket.SendBuf(buf, 6);
 				//重量変更
 				tc.Weight := tc.Weight + weight;
-        Dec(tp.Kafra.Weight,weight);
+        Dec(tkf.Kafra.Weight,weight);
 				WFIFOW( 0, $00b0);
 				WFIFOW( 2, $0018);
 				WFIFOL( 4, tc.Weight);
@@ -3468,7 +3841,7 @@ end;
 		$0113: //ターゲット指定or瞬時発動スキル
 			begin
 
-				if tc.MMode <> 0 then continue;
+				if (tc.MMode <> 0) then continue;
         if (tc.MMode = 0) and (tc.MTick > timeGetTime()) then Continue;
 {チャットルーム機能追加}
 				//入室中のスキル使用無効
@@ -3943,17 +4316,18 @@ end;
 				if(tc.VenderID <> 0) then continue;
 {露店スキル追加ココまで}
 				tp := tc.PData;
+        tkf := KafraDB.IndexOfObject(tp.ID) as TKafra;
 
 				RFIFOW(2, w1);//倉庫内での対象アイテムID
 				RFIFOL(4, l);//移動させる個数
 
-				if tp.Kafra.Item[w1].ID = 0 then Continue;
-				if tp.Kafra.Item[w1].Amount < l then
-					l := tp.Kafra.Item[w1].Amount;
-				j := SearchInventory(tc.Cart, tp.Kafra.Item[w1].ID, tp.Kafra.Item[w1].Data.IEquip);
+				if tkf.Kafra.Item[w1].ID = 0 then Continue;
+				if tkf.Kafra.Item[w1].Amount < l then
+					l := tkf.Kafra.Item[w1].Amount;
+				j := SearchInventory(tc.Cart, tkf.Kafra.Item[w1].ID, tkf.Kafra.Item[w1].Data.IEquip);
 
 				//tp.Kafra.Weight := 80000;
-				k := MoveItem(tc.Cart,tp.Kafra,w1,l);
+				k := MoveItem(tc.Cart,tkf.Kafra,w1,l);
 				if k = -1 then Continue;
 				if k = 2 then begin
 					//重量オーバーのパケットを送り、処理から抜ける
@@ -3976,7 +4350,7 @@ end;
 
 				//倉庫アイテム数変更
 				WFIFOW(0, $00f2);
-				WFIFOW(2, tp.Kafra.Count);
+				WFIFOW(2, tkf.Kafra.Count);
 				WFIFOW(4, 100);
 				tc.Socket.SendBuf(buf, 6);
 
@@ -4012,6 +4386,7 @@ end;
 				if(tc.VenderID <> 0) then continue;
 {露店スキル追加ココまで}
 				tp := tc.PData;
+        tkf := KafraDB.IndexOfObject(tp.ID) as TKafra;
 
 				RFIFOW(2, w1);//カート内での対象アイテムID
 				RFIFOL(4, l);//移動させる個数
@@ -4019,9 +4394,9 @@ end;
 				if tc.Cart.Item[w1].ID = 0 then Continue;
 				if tc.Cart.Item[w1].Amount < l then
 					l := tc.Cart.Item[w1].Amount;
-				j := SearchInventory(tp.Kafra, tc.Cart.Item[w1].ID, tc.Cart.Item[w1].Data.IEquip);
+				j := SearchInventory(tkf.Kafra, tc.Cart.Item[w1].ID, tc.Cart.Item[w1].Data.IEquip);
 
-				k := MoveItem(tp.Kafra,tc.Cart,w1,l);
+				k := MoveItem(tkf.Kafra,tc.Cart,w1,l);
 				if k = -1 then Continue
 				else if k = 3 then begin
 					WFIFOW(0, $00ca);
@@ -4048,19 +4423,19 @@ end;
 				WFIFOW( 0, $00f4);
 				WFIFOW( 2, j);
 				WFIFOL( 4, l);
-				WFIFOW( 8, tp.Kafra.Item[j].ID);
-				WFIFOB(10, tp.Kafra.Item[j].Identify);
-				WFIFOB(11, tp.Kafra.Item[j].Attr);
-				WFIFOB(12, tp.Kafra.Item[j].Refine);
-				WFIFOW(13, tp.Kafra.Item[j].Card[0]);
-				WFIFOW(15, tp.Kafra.Item[j].Card[1]);
-				WFIFOW(17, tp.Kafra.Item[j].Card[2]);
-				WFIFOW(19, tp.Kafra.Item[j].Card[3]);
+				WFIFOW( 8, tkf.Kafra.Item[j].ID);
+				WFIFOB(10, tkf.Kafra.Item[j].Identify);
+				WFIFOB(11, tkf.Kafra.Item[j].Attr);
+				WFIFOB(12, tkf.Kafra.Item[j].Refine);
+				WFIFOW(13, tkf.Kafra.Item[j].Card[0]);
+				WFIFOW(15, tkf.Kafra.Item[j].Card[1]);
+				WFIFOW(17, tkf.Kafra.Item[j].Card[2]);
+				WFIFOW(19, tkf.Kafra.Item[j].Card[3]);
 				Socket.SendBuf(buf, 21);
 
 				//倉庫アイテム数変更
 				WFIFOW(0, $00f2);
-				WFIFOW(2, tp.Kafra.Count);
+				WFIFOW(2, tkf.Kafra.Count);
 				WFIFOW(4, 100);
 				tc.Socket.SendBuf(buf, 6);
 			end;
@@ -4268,43 +4643,32 @@ end;
 			end;
 {露店スキル追加ココまで}
 		//--------------------------------------------------------------------------
-{あぷろだ１:038}
-		$013f: //GMコマンド /item /monster
-		//monsterコマンドもitemコマンドもパケットは同一なので
-		//itemの処理→monsterの処理とやることにする
+		$013f: //GM /item /monster
+		//monster
+		//item
 
 			begin
-                           {GMかチェック}
-                           tp := tc.PData;
-                           if (tc.ID >=100001) and (tc.ID<=100005) then 
-                           if ((tp.GMMode = 1) or ((GMCheck and $02) <> 0))then
-                           {GMかチェック_end}
-                           begin
-				str := RFIFOS(2, 24);
-				tm := tc.MData;
-				//アイテム取得
-				//入力された文字列がモンスターを示してない場合にアイテム処理にはいる
-				if (MobDBName.IndexOf(str) = -1) then begin
+      tp := tc.PData;
+      h := IDTableDB.IndexOf(tc.ID);
+      if (h <> -1) then begin
+      tid := IDTableDB.Objects[h] as TIDTbl;
 
-					if ItemDBName.IndexOf(str) = -1 then continue;//アイテムの名前でなかったら処理から抜ける
+      str := RFIFOS(2, 24);
+      tm := tc.MData;
 
-					td := ItemDBName.Objects[ItemDBName.IndexOf(str)] as TItemDB;
+      if (ItemDBName.IndexOf(str) <> -1) and (tid.ItemSummon = 1) then begin
+      td := ItemDBName.Objects[ItemDBName.IndexOf(str)] as TItemDB;
 
 					if td.IEquip then begin
-						j := 1;//装備品なら1個
+						j := 1;
 					end else begin
-						j := 30;//非装備品なら30個
+						j := 30;
 					end;
 
 				if tc.MaxWeight >= tc.Weight + cardinal(td.Weight) * cardinal(j) then begin
-
 					k := SearchCInventory(tc, td.ID, td.IEquip);
-
 					if k <> 0 then begin
-
-						if tc.Item[k].Amount + j > 30000 then continue;
-
-							//アイテム追加
+              if tc.Item[k].Amount + j > 30000 then continue;
 							tc.Item[k].ID := td.ID;
 							tc.Item[k].Amount := tc.Item[k].Amount + j;
 							tc.Item[k].Equip := 0;
@@ -4316,30 +4680,22 @@ end;
 							tc.Item[k].Card[2] := 0;
 							tc.Item[k].Card[3] := 0;
 							tc.Item[k].Data := td;
-							//重量追加
 							tc.Weight := tc.Weight + cardinal(td.Weight) * cardinal(j);
 							WFIFOW( 0, $00b0);
 							WFIFOW( 2, $0018);
 							WFIFOL( 4, tc.Weight);
 							Socket.SendBuf(buf, 8);
-
-							//アイテムゲット通知
 							SendCGetItem(tc, k, j);
 					end;
-
 					end else begin
-
-						//重量オーバー
 						WFIFOW( 0, $00a0);
 						WFIFOB(22, 2);
 						Socket.SendBuf(buf, 23);
-
 					end;
+        end;
 
-				end else begin
-					//モンスター召還
-
-					ts := TMob.Create;
+        if (MobDBName.IndexOf(str) <> -1) and (tid.MonsterSummon = 1) then begin
+          ts := TMob.Create;
 					ts.Data := MobDBName.Objects[MobDBName.IndexOf(str)] as TMobDB;
 					ts.ID := NowMobID;
 					Inc(NowMobID);
@@ -4374,10 +4730,6 @@ end;
 					ts.DmgTick := 0;
 
           ts.Element := ts.Data.Element;
-					//以下GMコマンド、枝での召還っぽくするための処理
-					//名前をsummonMonsterにし、MVP,EXP,JOBEXPを0に、アクティブモンスターに変える
-					//mob_db内の数値の関係であらゆるモンスターを移動可＆アクティブにすると0による除算を行いエラーがでるので
-					//その点は今後の流れをみて考えます
 
           if (SummonMonsterName = true) then begin
           ts.Name := ts.Data.JName;
@@ -4410,7 +4762,8 @@ end;
 						end;
 						ts.MVPDist[0].Dmg := ts.Data.HP * 30 div 100; //FAに30%加算
 					end;
-          ts.isSummon := SummonMonsterExp;
+          ts.isSummon := True;
+          ts.EmperiumID := 0;
 
 					tm.Mob.AddObject(ts.ID, ts);
 					tm.Block[ts.Point.X div 8][ts.Point.Y div 8].Mob.AddObject(ts.ID, ts);
@@ -4478,8 +4831,10 @@ if (SummonMonsterMob = true) then begin
 					end;
 					tm.Mob.AddObject(ts1.ID, ts1);
 					tm.Block[ts1.Point.X div 8][ts1.Point.Y div 8].Mob.AddObject(ts1.ID, ts1);
-					ts1.isSummon := false;
-          ts1.isSlave :=true;
+					ts1.isSummon := true;
+          ts1.isSlave := true;
+          ts1.EmperiumID := 0;
+          
 					SendMData(tc.Socket, ts1);
 					//周囲に送信
 					SendBCmd(tm,ts1.Point,41,tc,False);
@@ -4492,12 +4847,11 @@ if (SummonMonsterMob = true) then begin
      end;
     end;
 end;
+end;
 
-
-				end;
-        end;
+      end;
 			end;
-{あぷろだ１:038ココまで}
+
 		//--------------------------------------------------------------------------
 		$0143: //NPC会話でInputNumber入力
 			begin
@@ -4715,7 +5069,7 @@ end;
 					end;
 					//変更通知
 					WFIFOW( 0, $0174);
-					SendGuildMCmd(tc, w);
+					SendGuildMCmd(tc, w, false);
 				end;
 			end;
 		//--------------------------------------------------------------------------
@@ -4724,7 +5078,7 @@ end;
 				RFIFOL(2, l);
 				str := RFIFOS(6, 24);
 				if (str = '') then continue;
-        SendGuildInfo(tc,1,true);
+        SendGuildInfo(tc,1,true,false);
 				//エンペリウムチェック
 				w := 0;
 				i := 0;
@@ -4780,6 +5134,7 @@ end;
 					Name := str;
 					LV := 1;
 					EXP := 0;
+          tg.NextEXP := GExpTable[tg.LV];
 					MasterName := tc.Name;
 					RegUsers := 1;
 					MaxUsers := 16;
@@ -4814,9 +5169,20 @@ end;
 				WFIFOW( 0, $0167);
 				WFIFOB( 2, 0);
 				Socket.SendBuf(buf, 3);
+        
+        WFIFOW( 0, $016d);
+        WFIFOL( 2, tc.ID);
+        WFIFOL( 6, tc.CID);
+        WFIFOL(10, 1);
+        SendGuildMCmd(tc, 14);
+
+        SendGLoginInfo(tg, tc);
+
+
+        
 
 				//ギルド情報送信
-				SendGLoginInfo(tg, tc);
+				
 			end;
 		//--------------------------------------------------------------------------
 		$0168: //ギルド勧誘
@@ -4858,7 +5224,6 @@ j := GuildList.IndexOf(l);
 if (j <> -1) then begin
 tg := GuildList.Objects[j] as TGuild;
 
-
 //tc1 := Chara.IndexOfObject(tc.GuildInv) as TChara;
 
 //if (l2 = 1) and (tc1 <> nil) then begin
@@ -4879,6 +5244,13 @@ WFIFOW( 0, $0169);
 WFIFOB( 2, 2);
 tc.Socket.SendBuf(buf, 3);
 //tc1.Socket.SendBuf(buf, 3);
+
+//WFIFOW( 0, $016d);
+//WFIFOL( 2, tc.ID);
+//WFIFOL( 6, tc.CID);
+//WFIFOL(10, 1);
+//SendGuildMCmd(tc, 14, true);
+
 SendGLoginInfo(tg, tc);
 end;
 end;
@@ -5422,9 +5794,13 @@ end;
 
 				end;
 			end;
-{アイテム製造追加ココまで}
-		//--------------------------------------------------------------------------
-{アイテム製造追加}
+
+    //--------------------------------------------------------------------------
+    $190:
+      begin
+
+      end;
+   //--------------------------------------------------------------------------
 		$0193: //指定IDのキャラ、NPCの名前を要求
 			begin
 				RFIFOL(2, l);
@@ -5442,35 +5818,36 @@ end;
 		//--------------------------------------------------------------------------
 		$0197: //GMコマンド /resetstate /resetskill(将来的にはGMチェックを入れる)
 			begin
-                           {GMかチェック}
-                           tp := tc.PData;
-                           if (tc.ID >=100001) and (tc.ID<=100005) then
-                           if ((tp.GMMode = 1) or ((GMCheck and $04) <> 0))then
-                           {GMかチェック_end}
-                           begin
-				RFIFOW(2, w);
-				if w = 0 then begin// Resetstate(ステータス再分配)の処理
-					//パラメータ6個を全て1にする
+      tp := tc.PData;
+      h := IDTableDB.IndexOf(tc.ID);
+      if (h <> -1) then begin
+      tid := IDTableDB.Objects[h] as TIDTbl;
+
+      RFIFOW(2, w);
+
+				if (w = 0) and (tid.ChangeStatSkill = 1) then begin// Resetstate
 					for i := 0 to 5 do begin
 						tc.ParamBase[i] := 1;
 					end;
-					//Lv1時の基本ポイント48をまず与える
 					tc.StatusPoint := 48;
-					//現在レベルまでのステータスポイント計算を逐一行う
-					//ここはもっと上手い方法があると思いますが私には無理(;´Д`)
 					for i := 1 to tc.BaseLV - 1 do begin
 						tc.StatusPoint := tc.StatusPoint + i div 5 + 3;
-				end;
-					end;
-					//各種ステータスを再計算し、クライアントに変更を通知
-					CalcStat(tc);
+				  end;
+          CalcStat(tc);
+          SendCStat(tc);
+        end;
 
-{追加}
-				if w = 1 then begin // ResetSkill(スキルポイント再分配)の処理
+				if (w = 1) and (tid.ChangeStatSkill = 1) then begin // ResetSkill
 					for i := 2 to 330 do begin
             if not tc.Skill[i].Card then
 							tc.Skill[i].Lv := 0;
 					end;
+          if (tc.Plag <> 0) then begin
+          tc.Skill[tc.Plag].Plag := false;
+          tc.Skill[tc.Plag].Lv := 0;
+          tc.Plag := 0;
+          tc.PLv := 0;
+          end;
 					if tc.JID = 0 then begin
 					end else if tc.JID < 7 then tc.SkillPoint := tc.JobLV -1
 					else tc.SkillPoint := tc.JobLV -1 + 49;
@@ -5478,61 +5855,37 @@ end;
           CalcStat(tc);
           SendCStat(tc);
 				end;
-{追加ココまで}
-				//if w = 1 then begin // ResetSkill(スキルポイント再分配)の処理
 
-				//	//減らしたポイント記録用にjを0にする
-				//	j := 0;
-				//	//スキルレベルを0にし、減らしたポイントをjに加えていく
-				//	for i := 1 to 157 do begin
-				//		if (tc.Skill[i].Lv <> 0) then begin
-				//			j := j + tc.Skill[i].Lv;
-				//			tc.Skill[i].Lv := 0;
-				//		end;
-				//	end;
-				//		tc.SkillPoint := j;
 
-				//	//スキル送信
-				//	//スキル計算系の関数ができたらそっちに飛ばす
-				//	//現在はスキルを全部真っ白にするだけ
-
-				//	WFIFOW( 0, $010f);
-				//	WFIFOW( 2, 4);
-				//	Socket.SendBuf(buf, 4);
-
-				//	//スキルポイントの変更を通知
-				//	SendCStat(tc);
-				//end;
-                                               //スキルポイントの変更を通知
-						SendCStat(tc);
 			end;
-								end;
+      end;
 		//--------------------------------------------------------------------------
 		$019d: //GMハイドコマンド
-			begin    
-                           {GMかチェック}
-                           tp := tc.PData;
-                           if (tc.ID >=100001) and (tc.ID<=100005)  then
-                           if ((tp.GMMode = 1) or ((GMCheck and $08) <> 0))then
-                           {GMかチェック_end}
-                           begin
-				tm := tc.MData;
+			begin
+      tp := tc.PData;
+      h := IDTableDB.IndexOf(tc.ID);
+      if (h <> -1) then begin
+      tid := IDTableDB.Objects[h] as TIDTbl;
+      if (tid.ChangeOption = 1) then begin
+      tm := tc.MData;
 
 				if (tc.Option < 64) then begin
 					tc.Option := tc.Option + 64;
+          tc.Hidden := true;
 				end else begin
 					tc.Option := tc.Option - 64;
+          tc.Hidden := false;
 				end;
-
 
 				WFIFOW(0, $0119);
 				WFIFOL(2, tc.ID);
 				WFIFOW(6, 0);
 				WFIFOW(8, 0);
 				WFIFOW(10, tc.Option);
-				WFIFOB(12, 0);//ちと不明　成否のフラグ？
+				WFIFOB(12, 0);
 				SendBCmd(tm, tc.Point, 13);
-                           end;
+      end;
+      end;
 			end;
 		//--------------------------------------------------------------------------
 {キューペット}

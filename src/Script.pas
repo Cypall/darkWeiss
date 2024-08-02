@@ -9,7 +9,7 @@ uses
 
 //==============================================================================
 // 関数定義
-		procedure NPCScript(tc:TChara; value:cardinal = 0; mode:byte = 0);
+		procedure NPCScript(tc:TChara; value:cardinal = 0; mode:byte = 0); //edited by The Harbinger -- darkWeiss version
 //==============================================================================
 
 
@@ -26,6 +26,7 @@ implementation
 procedure NPCScript(tc:TChara; value:cardinal = 0; mode:byte = 0);
 var
 	i,j,k,l :integer;
+  m       :integer;
 	cnt     :integer;
 	str     :string;
 	p       :pointer;
@@ -40,6 +41,8 @@ var
 	tm1     :TMap;
 	tn1     :TNPC;
 	tc1     :TChara;
+  tg      :TGuild;
+  tgc     :TCastle;
 	w       :word;
 	Tick    :cardinal;
 	tr      :NTimer;
@@ -48,7 +51,7 @@ var
 {NPCイベント追加ココまで}
 begin
 	flag := false;
-
+  
 	if (tc.AMode <> 3) then exit;
 	tn := tc.AData;
 	//with tn do begin
@@ -95,6 +98,12 @@ begin
 					end;
 					str := StringReplace(str, '$codeversion', CodeVersion, [rfReplaceAll]);
 					str := StringReplace(str, '$charaname', tc.Name, [rfReplaceAll]);
+          str := StringReplace(str, '$guildname', GetGuildName(tn), [rfReplaceAll]);
+          str := StringReplace(str, '$guildmaster', GetGuildMName(tn), [rfReplaceAll]);
+          str := StringReplace(str, '$edegree', IntToStr(GetGuildEDegree(tn)), [rfReplaceAll]);
+          str := StringReplace(str, '$etrigger', IntToStr(GetGuildETrigger(tn)), [rfReplaceAll]);
+          str := StringReplace(str, '$ddegree', IntToStr(GetGuildDDegree(tn)), [rfReplaceAll]);
+          str := StringReplace(str, '$dtrigger', IntToStr(GetGuildDTrigger(tn)), [rfReplaceAll]);
 					str := StringReplace(str, '$$', '$', [rfReplaceAll]);
 					i := Length(str);
 					WFIFOW(0, $00b4);
@@ -380,7 +389,7 @@ begin
 			15: //check
 				begin
 					str := tn.Script[tc.ScriptStep].Data1[0];
-							 if str = 'zeny'        then begin i := tc.Zeny;        end
+               if str = 'zeny'        then begin i := tc.Zeny;        end
 					else if str = 'job'         then begin i := tc.JID;         end
 					else if str = 'baselevel'   then begin i := tc.BaseLV;      end
 					else if str = 'joblevel'    then begin i := tc.JobLV;       end
@@ -391,6 +400,12 @@ begin
 					else if str = 'gender'      then begin i := tc.Gender;      end
 {髪色変更追加}
 					else if str = 'hcolor'      then begin i := tc.HairColor;   end
+          else if str = 'guildid'     then begin i := GetGuildID(tn);   end
+          else if str = 'guildkafra'  then begin i := GetGuildKafra(tn);   end
+          else if str = 'ismyguild'   then begin i := CheckGuildID(tn, tc);   end
+          else if str = 'ismymaster'   then begin i := CheckGuildMaster(tn, tc);   end
+          else if str = 'etrigger'   then begin i := GetGuildETrigger(tn);   end
+          else if str = 'dtrigger'   then begin i := GetGuildDTrigger(tn);   end
 {髪色変更追加ココまで}
 					else begin
 {NPCイベント追加ココまで}
@@ -601,7 +616,7 @@ begin
 					i := ConvFlagValue(tc, tn.Script[tc.ScriptStep].Data1[0], true);
 {NPCイベント追加ココまで}
 					//色変更
-					if (i >= 1) and (i <= 4) then begin
+					if (i >= 1) and (i <= 78) then begin
 						CalcStat(tc);
 						tc.ClothesColor := i - 1;
 						WFIFOW(0, $00c3);
@@ -1063,6 +1078,12 @@ begin
 					end;
 					str := StringReplace(str, '$codeversion', CodeVersion, [rfReplaceAll]);
 					str := StringReplace(str, '$charaname', tc.Name, [rfReplaceAll]);
+          str := StringReplace(str, '$guildname', GetGuildName(tn), [rfReplaceAll]);
+          str := StringReplace(str, '$guildmaster', GetGuildMName(tn), [rfReplaceAll]);
+          str := StringReplace(str, '$edegree', IntToStr(GetGuildEDegree(tn)), [rfReplaceAll]);
+          str := StringReplace(str, '$etrigger', IntToStr(GetGuildETrigger(tn)), [rfReplaceAll]);
+          str := StringReplace(str, '$ddegree', IntToStr(GetGuildDDegree(tn)), [rfReplaceAll]);
+          str := StringReplace(str, '$dtrigger', IntToStr(GetGuildDTrigger(tn)), [rfReplaceAll]);
 					str := StringReplace(str, '$$', '$', [rfReplaceAll]);
 					str := StringReplace(str, '\\', '\', [rfReplaceAll]);
 					if ((l mod 100) div 10 = 0) then str := tn.Name + ' : ' + str;
@@ -1256,7 +1277,7 @@ begin
 						end;
 						if (tn1.ScriptInitS <> -1) then begin
 							//OnInitラベルを実行
-							DebugOut.Lines.Add(Format('OnInit Event(%d)', [tn1.ID]));
+							//DebugOut.Lines.Add(Format('OnInit Event(%d)', [tn1.ID]));
 							tc1 := TChara.Create;
 							tc1.TalkNPCID := tn1.ID;
 							tc1.ScriptStep := tn1.ScriptInitS;
@@ -1417,6 +1438,144 @@ begin
           SendCStat1(tc, 0, $000c, tc.SkillPoint);
 					Inc(tc.ScriptStep);
 				end;
+      47: //hstyle
+				begin
+					i := ConvFlagValue(tc, tn.Script[tc.ScriptStep].Data1[0], true);
+					if (i >= 0) and (i <= 19) then begin
+              j := tc.HairColor;
+						  tc.Hair := i;
+
+							WFIFOW(0, $00c3);
+							WFIFOL(2, tc.ID);
+							WFIFOB(6, 1);
+							WFIFOB(7, i);
+							SendBCmd(tm, tc.Point, 8);
+
+							WFIFOW(0, $00c3);
+							WFIFOL(2, tc.ID);
+							WFIFOB(6, 6);
+							WFIFOB(7, j);
+							SendBCmd(tm, tc.Point, 8);
+					end;
+					Inc(tc.ScriptStep);
+				end;
+      48: //guildreg
+				begin
+          tn.Reg := tn.Script[tc.ScriptStep].Data1[0];
+					Inc(tc.ScriptStep);
+				end;
+      49: //getgskilllevel //S144 addstart
+				begin
+{NPCイベント追加}
+          j := GuildList.IndexOf(tc.GuildID);
+          if (j <> -1) then begin
+          tg := GuildList.Objects[j] as TGuild;
+					//i := ConvFlagValue(tc, tn.Script[tc.ScriptStep].Data1[0]);
+          i := StrToInt(tn.Script[tc.ScriptStep].Data1[0]);
+          //DebugOut.Lines.Add(tn.Script[tc.ScriptStep].Data1[0]);
+          //DebugOut.Lines.Add(tn.Script[tc.ScriptStep].Data1[1]);
+					if (Copy(tn.Script[tc.ScriptStep].Data1[0], 1, 1) <> '\') then begin
+						if i = 0 then begin
+							tc.Flag.Values[tn.Script[tc.ScriptStep].Data1[0]] := '0';
+						end else begin
+							tc.Flag.Values[tn.Script[tc.ScriptStep].Data1[1]] := IntToStr(tg.GSkill[i].Lv);
+						end;
+					end else begin
+						if i = 0 then begin
+							ServerFlag.Values[tn.Script[tc.ScriptStep].Data1[0]] := '0';
+						end else begin
+							ServerFlag.Values[tn.Script[tc.ScriptStep].Data1[1]] := IntToStr(tg.GSkill[i].Lv);
+						end;
+					end;
+          end;
+{NPCイベント追加ココまで}
+					Inc(tc.ScriptStep);
+				end;
+      50: //getguardstatus //S144 addstart
+				begin
+{NPCイベント追加}
+          j := CastleList.IndexOf(tn.Reg);
+          if (j <> -1) then begin
+          tgc := CastleList.Objects[j] as TCastle;
+					i := ConvFlagValue(tc, tn.Script[tc.ScriptStep].Data1[0]);
+          //i := StrToInt(tn.Script[tc.ScriptStep].Data1[0]);
+          //i := i - 1;
+          //DebugOut.Lines.Add(IntToStr(tgc.GuardStatus[i]));
+          //DebugOut.Lines.Add(tn.Script[tc.ScriptStep].Data1[0]);
+          //DebugOut.Lines.Add(tn.Script[tc.ScriptStep].Data1[1]);
+					if (Copy(tn.Script[tc.ScriptStep].Data1[0], 1, 1) <> '\') then begin
+						if i = 0 then begin
+							tc.Flag.Values[tn.Script[tc.ScriptStep].Data1[0]] := '0';
+						end else begin
+							tc.Flag.Values[tn.Script[tc.ScriptStep].Data1[1]] := IntToStr(tgc.GuardStatus[i]);
+						end;
+					end else begin
+						if i = 0 then begin
+							ServerFlag.Values[tn.Script[tc.ScriptStep].Data1[0]] := '0';
+						end else begin
+							ServerFlag.Values[tn.Script[tc.ScriptStep].Data1[1]] := IntToStr(tgc.GuardStatus[i]);
+						end;
+					end;
+          end;
+{NPCイベント追加ココまで}
+					Inc(tc.ScriptStep);
+				end;
+      52: //setguardstatus
+				begin
+					i := ConvFlagValue(tc, tn.Script[tc.ScriptStep].Data1[0]);
+          j := StrToInt(tn.Script[tc.ScriptStep].Data1[1]);
+          k := CastleList.IndexOf(tn.Reg);
+          if (k <> -1) then begin
+          tgc := CastleList.Objects[k] as TCastle;
+          if (i >= 1) or (i <= 8) then begin
+					if (j = 0) or (j = 1) then begin
+          //i := i - 1;
+          tgc.GuardStatus[i] := 1;
+					end;
+          end;
+          end;
+					Inc(tc.ScriptStep);
+				end;
+      51: //setguildkafra
+				begin
+					i := StrToInt(tn.Script[tc.ScriptStep].Data1[0]);
+					if (i = 0) or (i = 1) then begin
+          SetGuildKafra(tn,i);
+          EnableGuildKafra(tn.Map,'Kafra Service',i);
+					end;
+					Inc(tc.ScriptStep);
+				end;
+      53: //callguard
+				begin
+					i := ConvFlagValue(tc, tn.Script[tc.ScriptStep].Data1[0]);
+          if (i >= 1) or (i <= 8) then begin
+          CallGuildGuard(tn,i);
+          end;
+          Inc(tc.ScriptStep);
+        end;
+       54: //callmymob
+				begin
+					str := UpperCase(tn.Script[tc.ScriptStep].Data1[0]);
+          j := ConvFlagValue(tc, tn.Script[tc.ScriptStep].Data1[1]);
+          k := ConvFlagValue(tc, tn.Script[tc.ScriptStep].Data1[2]);
+          l := ConvFlagValue(tc, tn.Script[tc.ScriptStep].Data1[3]);
+          m := ConvFlagValue(tc, tn.Script[tc.ScriptStep].Data1[4]);
+          SpawnNPCMob(tn,str,j,k,l,m);
+          Inc(tc.ScriptStep);
+        end;
+       55: //resetguild
+        begin
+        l := CastleList.IndexOf(tn.Reg);
+        if (l <> - 1) then begin
+        CastleList.Delete(l);
+        end;
+        Inc(tc.ScriptStep);
+        end;
+       56: //guilddinvest
+        begin
+          GuildDInvest(tn);
+          Inc(tc.ScriptStep);
+        end;
 			44: //checkstr
 				begin
 					j := tn.Script[tc.ScriptStep].Data3[2];
