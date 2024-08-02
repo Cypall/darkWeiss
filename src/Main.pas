@@ -442,7 +442,7 @@ begin
 	//MapLoad('moc_vilg01');
 	//DebugOut.Lines.Add('');
 
-	DebugOut.Lines.Add('"darkWeiss" .// Harbinger Build -- Version 2.0.0.4');
+	DebugOut.Lines.Add('"darkWeiss" .// Harbinger Build -- Version 2.0.0.5');
 	DebugOut.Lines.Add('Startup Success.');
 	DebugOut.Lines.Add('');
 	cmdStart.Enabled := true;
@@ -2184,8 +2184,9 @@ begin
 						tn := tm.Block[m][n].NPC.Objects[k] as TNPC;
 						if ((dx <> 0) and (abs(xy.Y - tn.Point.Y) < 16) and (xy.X = tn.Point.X + dx * 15)) or
 						((dy <> 0) and (abs(xy.X - tn.Point.X) < 16) and (xy.Y = tn.Point.Y + dy * 15)) then begin
-							//消滅通知
-							DebugOut.Lines.Add(Format('		NPC %s Delete', [tn.Name]));
+							//DebugOut.Lines.Add(IntToStr(tn.Item.Identify));
+              //消滅通知
+							//DebugOut.Lines.Add(Format('		NPC %s Delete', [tn.Name]));
 							if tn.CType = 3 then begin
 								WFIFOW(0, $00a1);
 								WFIFOL(2, tn.ID);
@@ -2205,7 +2206,6 @@ begin
 						((dy <> 0) and (abs(Point.X - tn.Point.X) < 16) and (Point.Y = tn.Point.Y - dy * 15)) then begin
 							//出現通知
 							//DebugOut.Lines.Add(Format('		NPC %s Add', [tn.Name]));
-{NPCイベント追加}
 							if (tn.Enable = true) then begin
 								SendNData(Socket, tn, ver2);
 								if (tn.ScriptInitS <> -1) and (tn.ScriptInitD = false) then begin

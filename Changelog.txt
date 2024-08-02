@@ -1,0 +1,200 @@
+-- Version 2.0.0.5 --
+*Fixed bug in Card MaxHP/Sp Increase
+*Fixed Debug Output for npc deletion
+
+-- Version 2.0.0.4 --
+*Fixed bug in nopvp skill targets
+*Fixed bug in Item MaxHP/SP Increase
+*Added default values if no entry in mapinfo db
+*Removed Item Drops from mob slaves
+
+-- Version 2.0.0.3 --
+*Fixed bugs in Ygg Leafs
+*Fixed PvP list error on map loading
+*Fixed Monster Ago from summon items
+*Fixed infinite loop error with summon_slave mob skill
+
+-- Version 2.0.0.2 --
+*Fixed bug in skill use
+*Fixed bug in self target pvp skills
+
+-- Version 2.0.0.1 --
+*Fixed bug in character data loading
+*Fixed bug in nopvp maps
+
+-- Version 2.0.0.0 --
+*Fixed bugs in login
+*Fixed bugs in Database loading
+*Fixed Assassin skill Sonic Blow
+*Fixed Assassin skill Grim Tooth
+*Fixed Knight skill Calvalry Mastery
+*Fixed bugs in pvp
+*Fixed Hunter skill Detect
+*Fixed Hunter skill Ankle Snare
+*Fixed Hunter skill Skid Trap
+
+-- Version 1.9.0.0 --
+*Fixed Ygg leafs
+*Fixed bug in Priority Setting
+*Fixed ccolor to allow 77 palletes -- MUST have palletes client side
+*Added GM Command:
+	#hstyle -- changes your hair style
+	->#hstyle 1
+*Added mob map spawns
+*Fixed bug in mob spawn element property
+*Fixed bug in mob map spawns
+*Added Skill PVP
+
+-- Version 1.8.0.0 --
+*Fixed bug in Wizard skill Storm Gust
+*Removed Mob map spawns due to errors -- left respawns with mobs
+*Added Physical PVP 
+*Fixed bug in #die command
+
+-- Version 1.7.0.0 --
+*Fixed Exp Lost on Death
+*Fixed death heal bug in Acolyte Heal skill
+*Fixed Acolyte skill Aqua
+*Fixed Acolyte skill Signum Crusis
+*Fixed Acolyte skill Ruwatch
+*Fixed Mage Skill Sight
+*Fixed bug in #kill command
+*Fixed bug with Looting mob Leader
+*Fixed #goto/#warp bugs while using GM Hide
+*Fixed Cart Item loss bug when removing/adding carts
+*Added MonsterMob Option to Weiss.ini File
+	#Monsters Spawn with mobs when set to 1
+	#Monsters Spawn Without mobs when set to 0
+*Added DeathBaseLoss Option to Weiss.ini File
+	#Amount of Base Exp lost on death in percent
+*Added DeathJobLoss Option to Weiss.ini File
+	#Amount of Job Exp lost on death in percent
+
+
+-- Version 1.6.0.2 --
+*Fixed Debug Command Bug
+
+-- Version 1.6.0.1 --
+*Fixed Archer Skill Arrow Creation
+*Fixed Theif skill Hide
+
+-- Version 1.6.0.0 --
+*Fixed sp use bugs in Knight spear skills with incorrect weapon
+*Fixed death heal bug in Acolyte Heal skill
+*Fixed bug in Swordman skill Moving Recovery
+*Fixed bug in Merchant skill Push Cart
+*Fixed Theif skill Throw sand
+*Fixed Monk skill Spirit Recovery
+*Added GM Command:
+	#kill -- kills that player instantly
+	->#kill playername
+
+-- Version 1.5.0.0 --
+*Fixed bugs in Hunter trap skills
+*Fixed bug in Acolyte skill warp
+*Fixed bug in #skillall command
+*Fixed bug in /resetskill command
+*Fixed Crusader skill Faith
+*Fixed Crusader skill Holy Cross
+*Fixed Crusader skill Grand Cross
+*Fixed Knight skill two-hand quicken
+*Fixed Merchant skill Item Appraisal
+*Fixed guild bug
+
+-- Version 1.4.0.0 --
+*Fixed mob stay bug with summon mobs
+*Fixed mob death bug with summon mobs
+*Fixed search path error with summon mobs
+*Fixed Priest skill Magnus 
+*Fixed Priest skill Resurrection
+*Fixed some guild bugs
+*Fixed Swordman skill autoberserk
+*Fixed Merchant Pushcart
+*Fixed Acolyte skill Signum Crusis
+*Fixed Theif skill throw sand
+*Fixed Crusader skill Shield Boomerang
+ 
+-- Version 1.3.0.2 --
+*Fixed mob loot/nonago bug with summon mobs
+*Fixed Teleport bug
+*Fixed Warp bug
+*Fixed Total Slaves bug with summon mobs
+*Fixed Archer skill Arrow Shower
+*Fixed Mage skill Fire Pillar
+*Fixed Acolyte skill Warp
+*Fixed Knight skill Spear Stab
+*Fixed Knight skill Brandish Spear
+*Fixed Knight skill Spear boomerang
+*Fixed Knight skill Pierce
+
+-- Version 1.3.0.1 --
+*Fixed mob trailing bug with summon mobs
+*Fixed mob death bug with Summon Mobs
+
+-- Version 1.3.0.0 --
+*Fixed NPC Translation Bug --->Thanks goes to Melz for finding/fixing this<---
+*Added SummonMonsterMob Option to Weiss.ini File
+	#Summon Monsters Spawn with mobs when set to 1
+	#Summon Monsters Spawn Without mobs when set to 0
+
+-- Version 1.2.0.0 --
+*Added resetskill to NPC script commands
+	#resets players skills
+*Added resetstat to NPC script commands
+	#resets players stats
+*Fixed bug in Novice Basic Skill Sit - Now works at correct level
+*Fixed bug in Novice Act Dead skill
+*Fixed Mage skill Stone Curse
+*Fixed Archer Arrow Shower -- Range may be too high??
+*Fixed Acolyte skill warp
+*Fixed Acolyte skill Aqua Benedicta
+*Fixed Merchant Skill Cart Revolution
+*Fixed Hunter skill Claymore Trap
+*Fixed Thief skill Take Stone
+*Fixed Thief skill Throw Stone
+*Fixed Bug in login
+*Fixed Bug in Flee
+*Fixed Bug in Guild Creation
+
+-- Version 1.1.0.0 --
+*Lots and Lots of skill fixes
+
+-- Version 1.0.0.2 --
+*Added SummonMonsterName Option to Weiss.ini File
+	#Shows summon monster's actual Name when set to 1
+	#shows 'Summon Monster' as monster name when set to 0
+*Added SummonMonsterAgo Option to Weiss.ini File
+	#all summon monsters are aggresive when set to 1
+	#summon monsters are set to actual aggression level when set to 0
+*Fixed Wizard Skill Fire Pillar, Ice Wall
+*Fixed Hunter Trap skills
+*Fixed Knight Spear Boomerang, Stab Spear, Brandish Spear
+*Fixed Bug in GM command #skillall
+
+-- Version 1.0.0.1 --
+*Added GM Commands:
+	#blevel -- changes base level
+	->#blevel 99
+	#jlevel -- change job level
+	->#jlevel 50
+	#statall -- changes all stats to 99 and adds 1000 stat points
+	->#statall
+	#goto -- warps you to that player
+	->#goto playername
+	#summon -- warps that player to your location
+	->#summon playername
+	#changestat -- changes character stat
+	->#changestat 0 99
+	#zeny -- adds that amount to your current total
+	->#zeny 9999
+	#banish -- warps that player to location given
+	->#banish playername prontera 150 150
+*Added SummonMonsterExp Option to Weiss.ini File
+	#allows summon monsters to give exp when set to 1
+	#disallows summon monsters to give exp when set to 0
+*Fixed GM Hide -- Monsters No Longer Attack Hidden GMs
+*Fixed Novice Skills
+*Fixed Mage Skills
+*Fixed Merchant Skill Cart Revolution
+*Fixed Thief Skills
+*Fixed Swordman/Knight/Crusader Moving Recovery

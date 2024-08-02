@@ -1392,26 +1392,23 @@ begin
 		end; //for j :=1 to 330 do begin
 		if td.Cast <> 0 then MCastTimeFix := MCastTimeFix * td.Cast div 100; //詠唱時間%
 		if td.HP1 <> 0 then begin //MAXHP%(1001以上で+)
-        if Round(MAXHP * (1 + (td.HP1 / 100))) > 65535 then begin
-        MAXHP := 65535;
-        end else begin
-				MAXHP := Round(MAXHP * (1 + (td.HP1 / 100)));
-        end;
+			if td.HP1 > 1000 then begin
+				MAXHP := MAXHP + (td.HP1 - 1000);
+				//end else Inc(MAXHPPer,(td.HP1-100));
+        end else Inc(MAXHPPer,(td.HP1 - 100));
 			end;
 		if td.HP2 <> 0 then begin //HP回復速度%
 			HPDelayFix := HPDelayFix + 100 - td.HP2;
 		end;
 		if td.SP1 <> 0 then begin //MAXSP%(1001以上で+)
-      if Round(MAXSP * (1 + (td.SP1 / 100))) > 65535 then begin
-        MAXHP := 65535;
-        end else begin
-				MAXSP := Round(MAXSP * (1 + (td.SP1 / 100)));
-        end;
+			if td.SP1 > 1000 then begin
+				MAXSP := MAXSP + (td.SP1 - 1000);
+			end else Inc(MAXSPPer,(td.SP1 - 100));
 		end;
 		if td.SP2 <> 0 then begin //SP回復速度%
 			SPDelayFix := SPDelayFix + 100 - td.SP2;
 		end;
-	end;
+  end;
 end;
 //------------------------------------------------------------------------------
 procedure CalcEquip(tc:TChara);
@@ -2969,6 +2966,7 @@ begin
 {NPCイベント追加}
 	if (tn.JID = -1) then exit;
 {NPCイベント追加ココまで}
+
 	if tn.CType = 3 then begin
 		WFIFOW( 0, $009d);
 		WFIFOL( 2, tn.ID);
