@@ -1,0 +1,7 @@
+Make Forder in C:\Program Files\Gravity\RagnarokOnline and named as Data
+Example C:\Program Files\Gravity\RagnarokOnline\Data and put Server to Data folder
+Download Server darkWeiss
+Download RagExe for darkWeiss (Supprt Ragexe GMOclub)
+Add Ragexe to C:\Program Files\Gravity\RagnarokOnline
+Run server darkWeiss
+Register account using eWeiss-Account-Maker     
